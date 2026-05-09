@@ -69,6 +69,24 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
     return null;
 }
 
+async function runSingleAgent(agentId, prompt, onEvent = null, sessionStats = {}) {
+    const agent = agentsData.agents.find(a => a.id === agentId);
+    if (!agent) throw new Error(`Agent with ID ${agentId} not found.`);
+
+    if (onEvent) onEvent({ type: 'agent_start', agent: agent.role, task: prompt, activeCount: 1 });
+    
+    const result = await callOpenRouter(agent.model, [
+        { role: 'system', content: `You are the ${agent.role} in the ${agent.department} department.` },
+        { role: 'user', content: prompt }
+    ], agent.fallbackModel, sessionStats.sandbox);
+
+    if (result && onEvent && result.usage) {
+        onEvent({ type: 'usage', usage: result.usage });
+    }
+
+    return result ? result.content : "Agent failed to respond.";
+}
+
 async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
     const orchestrator = agentsData.orchestrator;
     if (onEvent) onEvent({ type: 'status', message: `CEO Analyzing task: "${userPrompt}"...` });
@@ -116,7 +134,6 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
         if (agent) {
             activeCount++;
             if (onEvent) onEvent({ type: 'agent_start', agent: agent.role, task: task.subtask, activeCount });
-            else console.log(`[${agent.role}] Executing: ${task.subtask}...`);
             
             const agentResult = await callOpenRouter(agent.model, [
                 { role: 'system', content: `You are the ${agent.role} in the ${agent.department} department.` },
@@ -135,7 +152,6 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
     }
 
     if (onEvent) onEvent({ type: 'status', message: `CEO Synthesizing final report...` });
-    else console.log(`[CEO] Synthesizing final report...`);
 
     const finalResult = await callOpenRouter(orchestrator.model, [
         { role: 'system', content: orchestrator.prompt },
@@ -152,11 +168,9 @@ if (require.main === module) {
     if (args.length > 0) {
         orchestrate(args.join(' ')).then(console.log);
     } else {
-        // Dynamic import to avoid circular dependency if needed, 
-        // but here we just require since tui.js requires index.js
         const { interactiveSession } = require('./tui.js');
         interactiveSession().catch(console.error);
     }
 }
 
-module.exports = { orchestrate };
+module.exports = { orchestrate, runSingleAgent };

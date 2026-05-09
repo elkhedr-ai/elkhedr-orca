@@ -3,7 +3,7 @@ const { intro, outro, spinner, log, isCancel } = require('@clack/prompts');
 const chalk = require('chalk');
 const boxen = require('boxen');
 const gradient = require('gradient-string');
-const { orchestrate } = require('./core.js');
+const core = require('./core.js');
 const { CommandRegistry } = require('./commands.js');
 const enquirer = require('enquirer');
 const fs = require('fs');
@@ -26,7 +26,8 @@ let sessionStats = {
     lastModel: 'N/A'
 };
 
-const commandRegistry = new CommandRegistry(sessionStats);
+// Initialize Registry with reference to core for direct tasks
+const commandRegistry = new CommandRegistry(sessionStats, core);
 
 function centerText(text) {
     const { columns } = termSize();
@@ -76,22 +77,37 @@ function renderStatusBar() {
     }));
 }
 
-// Custom Safe Autocomplete class to prevent regex crash
-class SafeAutoComplete extends enquirer.AutoComplete {
+// Custom Safe Autocomplete class to prevent regex crash and handle conditional visibility
+class OrcaPrompt extends enquirer.AutoComplete {
     constructor(options) {
         super(options);
     }
     
-    // Override highlight to safely escape regex characters
+    // Override render to control choices visibility
+    async render() {
+        if (!this.input.startsWith('/')) {
+            this.state.index = -1; // Deselect any command
+        }
+        return super.render();
+    }
+
+    // Override renderChoices to HIDE list unless typing /
+    renderChoices() {
+        if (!this.input.startsWith('/')) {
+            return '';
+        }
+        return super.renderChoices();
+    }
+
+    // Fix regex highlight crash
     highlight(str) {
         if (!this.input) return str;
         try {
-            // Escape special regex characters from user input
             const safeInput = this.input.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
             const regex = new RegExp(safeInput, 'ig');
             return str.replace(regex, chalk.cyan('$&'));
         } catch (e) {
-            return str; // Fallback to plain string if regex fails
+            return str;
         }
     }
 }
@@ -104,20 +120,18 @@ async function interactiveSession() {
         
         const choices = commandRegistry.getCommandList();
         
-        const prompt = new SafeAutoComplete({
+        const prompt = new OrcaPrompt({
             name: 'query',
             message: chalk.cyan.bold('🐋 ORCA PROMPT'),
             choices: choices.map(c => c.name),
             limit: 10,
             suggest(input, choices) {
-                // If typing a command, show matching commands
                 if (input.startsWith('/')) {
                     return choices.filter(choice => choice.name.startsWith(input));
                 }
-                // If typing normal text, don't show command matches in the list
                 return [];
             },
-            footer: () => chalk.dim(' (Type / for commands, or describe your task)')
+            footer: () => this.input && this.input.startsWith('/') ? chalk.dim(' (Search commands...)') : chalk.dim(' (Type / for commands)')
         });
 
         let query;
@@ -141,7 +155,7 @@ async function interactiveSession() {
         s.start(chalk.blue('CEO analyzing corporate resources...'));
 
         try {
-            const result = await orchestrate(query, (event) => {
+            const result = await core.orchestrate(query, (event) => {
                 if (event.activeCount !== undefined) {
                     sessionStats.activeAgents = event.activeCount;
                 }
