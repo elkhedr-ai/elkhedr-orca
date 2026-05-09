@@ -2,13 +2,17 @@
 
 Elkhedr Orca features a rich, interactive Terminal User Interface (TUI) designed for maximum productivity and aesthetic appeal.
 
-## 🎨 The TUI Experience
+## 🎨 Premium TUI Experience
 
-The TUI is powered by `@clack/prompts`, `chalk`, and `boxen`, providing:
-- **Interactive Prompts:** A clean, modern input field for multi-step tasks.
-- **Real-time Status:** Live feedback on which agent is currently working (e.g., `[Frontend React Expert] Building UI components`).
-- **Formatted Reports:** Final outputs are rendered in elegant panels for readability.
-- **Branded Splash:** A cyan-blue gradient splash screen upon startup.
+The TUI provides a world-class interface inspired by Claude and OpenCode:
+- **Responsive Layout:** Dynamically centers content based on terminal width.
+- **Interactive Status Bar:** Displays:
+  - **Cost ($):** Live estimation of API costs.
+  - **Threads:** Number of background agents actively processing.
+  - **Agent:** The currently active subagent's role.
+  - **Sandbox:** Security status indicator.
+- **Branded Splash:** High-fidelity ASCII art with blue-gradient effects.
+- **Formatted Reports:** Executive summaries in high-impact double-bordered panels.
 
 ## 🚀 How to Launch
 
