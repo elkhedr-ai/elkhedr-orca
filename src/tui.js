@@ -3,7 +3,7 @@ const { intro, outro, text, spinner, note, log, isCancel } = require('@clack/pro
 const chalk = require('chalk');
 const boxen = require('boxen');
 const gradient = require('gradient-string');
-const { orchestrate } = require('./index.js');
+const { orchestrate } = require('./core.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -17,7 +17,7 @@ async function showSplash() {
    |   |___ |       ||    _  |  |   _   ||   |___ |   |  | ||       |   |       ||   |  | ||     |_ |   _   |
    |_______||_______||___| |_|  |__| |__||_______||___|  |_||______|    |_______||___|  |_||_______||__| |__|
     `;
-    console.log(gradient.cyan.blue(splash));
+    console.log(gradient(['cyan', 'blue'])(splash));
     console.log(chalk.blue.bold('\n   Corporate Ecosystem Orchestrator | 100 Specialized Agents | Elkhedr OS\n'));
 }
 
