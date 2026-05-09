@@ -2,7 +2,7 @@
 const { Server } = require("@modelcontextprotocol/sdk/server/index.js");
 const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
 const { CallToolRequestSchema, ListToolsRequestSchema } = require("@modelcontextprotocol/sdk/types.js");
-const { orchestrate } = require("./index.js");
+const { orchestrate } = require("./core.js");
 
 const server = new Server(
   {
