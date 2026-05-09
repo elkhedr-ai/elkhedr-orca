@@ -4,7 +4,10 @@ const chalk = require('chalk');
 const boxen = require('boxen');
 const gradient = require('gradient-string');
 const { orchestrate } = require('./core.js');
-const termSize = require('terminal-size');
+const termSize = () => {
+    const ts = require('terminal-size');
+    return (typeof ts === 'function' ? ts : ts.default)();
+};
 
 // Session State
 let sessionStats = {
