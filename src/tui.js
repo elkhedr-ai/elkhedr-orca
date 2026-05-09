@@ -1,15 +1,19 @@
 #!/usr/bin/env node
-const { intro, outro, spinner, log, isCancel } = require('@clack/prompts');
+const { intro, outro, text, select, spinner, log, isCancel } = require('@clack/prompts');
 const chalk = require('chalk');
 const boxen = require('boxen');
 const gradient = require('gradient-string');
 const { orchestrate } = require('./core.js');
 const { CommandRegistry } = require('./commands.js');
-const enquirer = require('enquirer');
+const fs = require('fs');
+const path = require('path');
+
 const termSize = () => {
     const ts = require('terminal-size');
     return (typeof ts === 'function' ? ts : ts.default)();
 };
+
+const sessionsPath = path.join(__dirname, '../sessions/history.json');
 
 // Session State
 let sessionStats = {
@@ -77,37 +81,38 @@ async function interactiveSession() {
     while (true) {
         renderStatusBar();
         
-        // Use Enquirer Autocomplete for commands and free text
-        const prompt = new enquirer.AutoComplete({
-            name: 'query',
+        let query = await text({
             message: chalk.cyan.bold('🐋 ORCA PROMPT'),
-            choices: commandRegistry.getCommandList().map(c => c.name),
-            limit: 10,
-            suggest(input, choices) {
-                if (input.startsWith('/')) {
-                    return choices.filter(choice => choice.name.startsWith(input));
-                }
-                return []; 
-            }
+            placeholder: 'Type your task or / for commands...',
+            validate(value) {
+                if (value.length === 0) return `Prompt cannot be empty!`;
+            },
         });
 
-        let query;
-        try {
-            query = await prompt.run();
-        } catch (e) {
+        if (isCancel(query)) {
             outro(chalk.yellow('Orca system standing down. Session terminated.'));
             process.exit(0);
         }
 
-        if (!query) continue;
+        // 1. Trigger Command Menu if user types /
+        if (query === '/') {
+            const cmd = await select({
+                message: chalk.magenta('Select a Command'),
+                options: commandRegistry.getCommandList()
+            });
 
-        // 1. Check if it's a command
+            if (isCancel(cmd)) continue;
+            await commandRegistry.execute(cmd);
+            continue;
+        }
+
+        // 2. Handle inline slash commands (e.g., /sandbox off)
         if (query.startsWith('/')) {
             const isHandled = await commandRegistry.execute(query);
             if (isHandled) continue;
         }
 
-        // 2. Otherwise, treat as orchestration task
+        // 3. Otherwise, treat as orchestration task
         const s = spinner();
         s.start(chalk.blue('CEO analyzing corporate resources...'));
 
@@ -124,12 +129,22 @@ async function interactiveSession() {
                     s.message(chalk.yellow(event.message));
                 } else if (event.type === 'usage' && event.usage) {
                     sessionStats.totalTokens += event.usage.total_tokens;
-                    // Simple average pricing for display
                     sessionStats.estimatedCost += (event.usage.total_tokens / 1000000) * 0.50; 
                 }
             }, sessionStats);
 
             sessionStats.totalTasks++;
+            
+            // Real session saving
+            const history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+            history.push({
+                timestamp: new Date().toISOString(),
+                prompt: query,
+                result: result,
+                tokens: sessionStats.totalTokens
+            });
+            fs.writeFileSync(sessionsPath, JSON.stringify(history, null, 2));
+
             s.stop(chalk.green('Orchestration Complete'));
             
             const { columns } = termSize();

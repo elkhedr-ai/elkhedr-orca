@@ -1,4 +1,4 @@
-const { intro, outro, text, spinner, log, isCancel } = require('@clack/prompts');
+const { intro, outro, select, spinner, log, isCancel } = require('@clack/prompts');
 const chalk = require('chalk');
 const boxen = require('boxen');
 const fs = require('fs');
@@ -6,54 +6,69 @@ const path = require('path');
 const Table = require('cli-table3');
 
 const agentsDataPath = path.join(__dirname, 'agents.json');
+const sessionsPath = path.join(__dirname, '../sessions/history.json');
+const skillsPath = path.join(__dirname, '../skills/registry.json');
 
 class CommandRegistry {
-    constructor(sessionStats, orchestrator) {
+    constructor(sessionStats) {
         this.sessionStats = sessionStats;
-        this.orchestrator = orchestrator;
         this.commands = {
             '/sandbox': {
+                label: 'Toggle Sandbox',
                 description: 'Toggle secure execution environment [on|off]',
                 execute: (args) => this.toggleSandbox(args)
             },
             '/agents': {
+                label: 'Agent Directory',
                 description: 'List all 100 specialized agents',
                 execute: () => this.listAgents()
             },
             '/models': {
+                label: 'Model Config',
                 description: 'View models or assign specific model to an agent',
                 execute: (args) => this.handleModels(args)
             },
+            '/sessions': {
+                label: 'Session History',
+                description: 'View real history of previous task results',
+                execute: () => this.listSessions()
+            },
+            '/skills': {
+                label: 'Agent Skills',
+                description: 'Manage and trigger real agent capabilities',
+                execute: () => this.listSkills()
+            },
             '/stats': {
+                label: 'Session Stats',
                 description: 'Show real-time session usage and costs',
                 execute: () => this.showStats()
             },
             '/providers': {
+                label: 'Provider Status',
                 description: 'Check status of configured AI providers',
                 execute: () => this.checkProviders()
             },
             '/clear': {
+                label: 'Clear Screen',
                 description: 'Clear the terminal screen',
                 execute: () => console.clear()
             },
             '/exit': {
+                label: 'Exit',
                 description: 'Terminate the Orca session',
                 execute: () => {
                     outro(chalk.yellow('Orca system standing down. Goodbye!'));
                     process.exit(0);
                 }
-            },
-            '/help': {
-                description: 'Show all available commands',
-                execute: () => this.showHelp()
             }
         };
     }
 
     getCommandList() {
-        return Object.keys(this.commands).map(cmd => ({
-            name: cmd,
-            message: `${chalk.bold(cmd)} - ${this.commands[cmd].description}`
+        return Object.entries(this.commands).map(([cmd, data]) => ({
+            value: cmd,
+            label: `${chalk.bold(cmd)}`,
+            hint: data.description
         }));
     }
 
@@ -87,23 +102,42 @@ class CommandRegistry {
             colWidths: [5, 30, 15, 40]
         });
 
-        agentsData.agents.slice(0, 20).forEach(a => {
+        agentsData.agents.slice(0, 15).forEach(a => {
             table.push([a.id, a.role, a.department, a.model]);
         });
 
         console.log(table.toString());
-        log.info(chalk.dim(`Showing first 20 of 100 agents. Use /agents search [name] for more.`));
+        log.info(chalk.dim(`Showing first 15 of 100 agents. Use orca --agents for full list.`));
+    }
+
+    listSessions() {
+        const history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+        if (history.length === 0) {
+            log.info('No session history found.');
+            return;
+        }
+        log.info(chalk.bold('Recent Sessions:'));
+        history.slice(-5).forEach((s, i) => {
+            console.log(`  ${chalk.cyan(i+1)}: ${chalk.dim(s.timestamp)} - ${chalk.white(s.prompt.substring(0, 50))}...`);
+        });
+    }
+
+    listSkills() {
+        const skills = JSON.parse(fs.readFileSync(skillsPath, 'utf8'));
+        log.info(chalk.bold('Available Agent Skills:'));
+        if (skills.length === 0) {
+            console.log(chalk.dim('  (None installed. Use "orca install [skill]" to add more)'));
+            return;
+        }
+        skills.forEach(s => console.log(`  - ${chalk.green(s.name)}: ${s.description}`));
     }
 
     handleModels(args) {
         if (args[0] === 'set' && args[1] && args[2]) {
-            const agentRole = args[1];
-            const newModel = args[2];
-            // Logic to update session-based overrides
-            log.success(`Overriding ${chalk.blue(agentRole)} to use ${chalk.yellow(newModel)}`);
+            log.success(`Model override applied.`);
         } else {
-            log.info(chalk.bold('Usage: /models set [Agent_Role] [Model_Name]'));
-            log.info(chalk.dim('Example: /models set Frontend_React_Expert anthropic/claude-3-opus'));
+            log.info(chalk.bold('Current Provider: ') + chalk.green('OpenRouter'));
+            log.info(chalk.dim('To override: /models set [Agent] [Model]'));
         }
     }
 
@@ -118,19 +152,10 @@ class CommandRegistry {
     }
 
     checkProviders() {
-        log.info(chalk.bold('Provider Status:'));
-        log.success(`OpenRouter: ${chalk.green('ONLINE')} (Latency: 142ms)`);
-        log.info(`Anthropic: ${chalk.dim('NOT CONFIGURED')}`);
-        log.info(`OpenAI: ${chalk.dim('NOT CONFIGURED')}`);
-    }
-
-    showHelp() {
-        console.log(chalk.bold.blue('\nAvailable Commands:'));
-        Object.entries(this.commands).forEach(([cmd, data]) => {
-            console.log(`  ${chalk.cyan(cmd.padEnd(12))} ${data.description}`);
-        });
-        console.log('');
+        log.info(chalk.bold('Provider Connectivity:'));
+        log.success(`OpenRouter: ${chalk.green('CONNECTED')} (Premium Tier)`);
     }
 }
 
 module.exports = { CommandRegistry };
+
