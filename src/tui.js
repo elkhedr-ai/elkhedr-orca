@@ -5,7 +5,7 @@ const boxen = require('boxen');
 const gradient = require('gradient-string');
 const { orchestrate } = require('./core.js');
 const { CommandRegistry } = require('./commands.js');
-const { Autocomplete } = require('enquirer');
+const enquirer = require('enquirer');
 const termSize = () => {
     const ts = require('terminal-size');
     return (typeof ts === 'function' ? ts : ts.default)();
@@ -78,7 +78,7 @@ async function interactiveSession() {
         renderStatusBar();
         
         // Use Enquirer Autocomplete for commands and free text
-        const prompt = new Autocomplete({
+        const prompt = new enquirer.AutoComplete({
             name: 'query',
             message: chalk.cyan.bold('🐋 ORCA PROMPT'),
             choices: commandRegistry.getCommandList().map(c => c.name),
@@ -87,7 +87,7 @@ async function interactiveSession() {
                 if (input.startsWith('/')) {
                     return choices.filter(choice => choice.name.startsWith(input));
                 }
-                return []; // Don't suggest for normal text
+                return []; 
             }
         });
 
