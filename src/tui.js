@@ -1,68 +1,118 @@
 #!/usr/bin/env node
-const { intro, outro, text, spinner, note, log, isCancel } = require('@clack/prompts');
+const { intro, outro, text, spinner, log, isCancel } = require('@clack/prompts');
 const chalk = require('chalk');
 const boxen = require('boxen');
 const gradient = require('gradient-string');
 const { orchestrate } = require('./core.js');
-const fs = require('fs');
-const path = require('path');
+const termSize = require('terminal-size');
 
-async function showSplash() {
+// Session State
+let sessionStats = {
+    totalTasks: 0,
+    activeAgents: 0,
+    estimatedCost: 0.00,
+    sandbox: true,
+    lastModel: 'N/A'
+};
+
+function centerText(text) {
+    const { columns } = termSize();
+    const lines = text.split('\n');
+    return lines.map(line => {
+        const padding = Math.max(0, Math.floor((columns - line.replace(/\u001b\[.*?m/g, '').length) / 2));
+        return ' '.repeat(padding) + line;
+    }).join('\n');
+}
+
+async function showHeader() {
+    const { columns } = termSize();
     const splash = `
-    _______  ___      ___   ___  __   __  _______  ______    ______      _______  ______    _______  _______ 
-   |       ||   |    |   | |   ||  | |  ||       ||    _ |  |      |    |       ||    _ |  |       ||   _   |
-   |    ___||   |    |   |_|   ||  |_|  ||    ___||   | ||  |  _    |   |   _   ||   | ||  |       ||  |_|  |
-   |   |___ |   |    |      _  ||       ||   |___ |   |_||_ | | |   |   |  | |  ||   |_||_ |       ||       |
-   |    ___||   |___ |     |_| ||       ||    ___||    __  || |_|   |   |  |_|  ||    __  ||      _||       |
-   |   |___ |       ||    _  |  |   _   ||   |___ |   |  | ||       |   |       ||   |  | ||     |_ |   _   |
-   |_______||_______||___| |_|  |__| |__||_______||___|  |_||______|    |_______||___|  |_||_______||__| |__|
+    _______  ___      ___   ___  __   __  _______  ______    ______   
+   |       ||   |    |   | |   ||  | |  ||       ||    _ |  |      |  
+   |    ___||   |    |   |_|   ||  |_|  ||    ___||   | ||  |  _    | 
+   |   |___ |   |    |      _  ||       ||   |___ |   |_||_ | | |   | 
+   |    ___||   |___ |     |_| ||       ||    ___||    __  || |_|   | 
+   |   |___ |       ||    _  |  |   _   ||   |___ |   |  | ||       | 
+   |_______||_______||___| |_|  |__| |__||_______||___|  |_||______| 
     `;
-    console.log(gradient(['cyan', 'blue'])(splash));
-    console.log(chalk.blue.bold('\n   Corporate Ecosystem Orchestrator | 100 Specialized Agents | Elkhedr OS\n'));
+    
+    console.clear();
+    console.log('\n' + centerText(gradient(['#00c6ff', '#0072ff'])(splash)));
+    console.log(centerText(chalk.blue.bold('Corporate Ecosystem Orchestrator | 100 Specialized Agents')));
+    console.log('\n');
+}
+
+function renderStatusBar() {
+    const { columns } = termSize();
+    const sandboxStatus = sessionStats.sandbox ? chalk.green('● SANDBOX ON') : chalk.red('○ SANDBOX OFF');
+    const stats = [
+        chalk.cyan(`💰 Cost: $${sessionStats.estimatedCost.toFixed(4)}`),
+        chalk.magenta(`🤖 Agent: ${sessionStats.lastModel}`),
+        chalk.yellow(`⚙️ Tasks: ${sessionStats.totalTasks}`),
+        sandboxStatus
+    ].join('  |  ');
+
+    console.log(boxen(stats, {
+        width: Math.min(columns - 4, 100),
+        textAlignment: 'center',
+        borderStyle: 'round',
+        borderColor: '#333',
+        padding: 0,
+        margin: { left: Math.floor((columns - Math.min(columns - 4, 100)) / 2) }
+    }));
 }
 
 async function interactiveSession() {
-    await showSplash();
+    await showHeader();
     
-    intro(chalk.bgBlue.white.bold(' ORCA INTERACTIVE TUI '));
-
     while (true) {
+        renderStatusBar();
+        
         const query = await text({
-            message: chalk.cyan('What should the team do?'),
-            placeholder: 'e.g., Build a landing page and write an SEO strategy',
+            message: chalk.cyan.bold('🐋 ORCA PROMPT'),
+            placeholder: 'Type your command (e.g., "Build a React dashboard")...',
             validate(value) {
-                if (value.length === 0) return `Value is required!`;
+                if (value.length === 0) return `Prompt cannot be empty!`;
             },
         });
 
         if (isCancel(query)) {
-            outro(chalk.yellow('Orca system standing down. Goodbye!'));
+            outro(chalk.yellow('Orca system standing down. Session terminated.'));
             process.exit(0);
         }
 
         const s = spinner();
-        s.start(chalk.yellow('CEO is analyzing and delegating tasks...'));
+        s.start(chalk.blue('CEO analyzing corporate resources...'));
 
         try {
             const result = await orchestrate(query, (event) => {
                 if (event.type === 'agent_start') {
-                    s.message(chalk.blue(`[${event.agent}] `) + chalk.white(event.task));
+                    sessionStats.lastModel = event.agent;
+                    s.message(chalk.white(`[${chalk.blue(event.agent)}] `) + chalk.dim(event.task));
                 } else if (event.type === 'status') {
                     s.message(chalk.yellow(event.message));
                 }
             });
-            s.stop(chalk.green('Task Completed!'));
+
+            sessionStats.totalTasks++;
+            // Simulate cost logic for UI (In real usage, we would parse token counts)
+            sessionStats.estimatedCost += 0.0012; 
+
+            s.stop(chalk.green('Orchestration Complete'));
             
+            const { columns } = termSize();
             console.log(boxen(result, {
+                width: Math.min(columns - 10, 120),
                 padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'cyan',
-                title: chalk.bold.blue('FINAL REPORT'),
+                margin: { left: Math.floor((columns - Math.min(columns - 10, 120)) / 2), top: 1, bottom: 1 },
+                borderStyle: 'double',
+                borderColor: 'blue',
+                title: chalk.bold.blue(' EXECUTIVE SUMMARY '),
                 titleAlignment: 'center'
             }));
+
         } catch (error) {
-            s.stop(chalk.red('Orchestration Failed'));
+            s.stop(chalk.red('Orchestration Interrupted'));
             log.error(error.message);
         }
     }
