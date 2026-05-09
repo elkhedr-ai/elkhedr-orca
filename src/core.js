@@ -19,7 +19,11 @@ async function callOpenRouter(model, messages, fallbackModel = null) {
                 'X-Title': 'Elkhedr Orca'
             }
         });
-        return response.data.choices[0].message.content;
+        
+        if (response.data && response.data.choices && response.data.choices[0]) {
+            return response.data.choices[0].message.content;
+        }
+        throw new Error("Empty or malformed response from OpenRouter");
     } catch (error) {
         console.error(`⚠️  Primary model failed (${model}): ${error.message}`);
         
@@ -36,7 +40,10 @@ async function callOpenRouter(model, messages, fallbackModel = null) {
                         'X-Title': 'Elkhedr Orca'
                     }
                 });
-                return response.data.choices[0].message.content;
+                if (response.data && response.data.choices && response.data.choices[0]) {
+                    return response.data.choices[0].message.content;
+                }
+                throw new Error("Empty or malformed response from OpenRouter (Fallback)");
             } catch (fallbackError) {
                 console.error(`❌ Fallback model also failed (${fallbackModel}): ${fallbackError.message}`);
                 return null;
