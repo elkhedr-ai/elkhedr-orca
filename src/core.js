@@ -1,56 +1,62 @@
-#!/usr/bin/env node
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+// Ensure we load .env from the actual project directory, not the user's CWD
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'), 'utf8'));
 
+// Universal fallback to a highly available free model if primary and secondary fail
+const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it:free";
+
 async function callOpenRouter(model, messages, fallbackModel = null) {
-    try {
-        const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
-            model: model,
-            messages: messages
-        }, {
-            headers: {
-                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'HTTP-Referer': 'https://github.com/ekagent/elkhedr-orca',
-                'X-Title': 'Elkhedr Orca'
-            }
-        });
-        
-        if (response.data && response.data.choices && response.data.choices[0]) {
-            return response.data.choices[0].message.content;
-        }
-        throw new Error("Empty or malformed response from OpenRouter");
-    } catch (error) {
-        console.error(`⚠️  Primary model failed (${model}): ${error.message}`);
-        
-        if (fallbackModel) {
-            console.log(`🔄 Routing to fallback model: ${fallbackModel}...`);
-            try {
-                const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
-                    model: fallbackModel,
-                    messages: messages
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                        'HTTP-Referer': 'https://github.com/ekagent/elkhedr-orca',
-                        'X-Title': 'Elkhedr Orca'
-                    }
-                });
-                if (response.data && response.data.choices && response.data.choices[0]) {
-                    return response.data.choices[0].message.content;
-                }
-                throw new Error("Empty or malformed response from OpenRouter (Fallback)");
-            } catch (fallbackError) {
-                console.error(`❌ Fallback model also failed (${fallbackModel}): ${fallbackError.message}`);
-                return null;
-            }
-        }
-        return null;
+    if (!OPENROUTER_API_KEY) {
+        throw new Error("OPENROUTER_API_KEY is missing. Please check your .env file or environment variables.");
     }
+
+    const tryCall = async (targetModel) => {
+        try {
+            const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+                model: targetModel,
+                messages: messages
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                    'HTTP-Referer': 'https://github.com/ekagent/elkhedr-orca',
+                    'X-Title': 'Elkhedr Orca'
+                }
+            });
+            
+            if (response.data && response.data.choices && response.data.choices[0]) {
+                return response.data.choices[0].message.content;
+            }
+            return null;
+        } catch (error) {
+            console.error(`⚠️  Model failed (${targetModel}): ${error.message}`);
+            return null;
+        }
+    };
+
+    // 1. Try Primary
+    let result = await tryCall(model);
+    if (result) return result;
+
+    // 2. Try Secondary (Fallback)
+    if (fallbackModel && fallbackModel !== model) {
+        console.log(`🔄 Routing to secondary fallback: ${fallbackModel}...`);
+        result = await tryCall(fallbackModel);
+        if (result) return result;
+    }
+
+    // 3. Try Universal Fallback
+    if (UNIVERSAL_FALLBACK !== model && UNIVERSAL_FALLBACK !== fallbackModel) {
+        console.log(`🚨 Routing to universal fallback: ${UNIVERSAL_FALLBACK}...`);
+        result = await tryCall(UNIVERSAL_FALLBACK);
+        return result;
+    }
+
+    return null;
 }
 
 async function orchestrate(userPrompt, onEvent = null) {
@@ -71,12 +77,24 @@ async function orchestrate(userPrompt, onEvent = null) {
         { role: 'user', content: decompositionPrompt }
     ], orchestrator.fallbackModel);
 
+    if (!decomposition) {
+        const errorMsg = "Critical failure: CEO could not decompose the task even with fallbacks.";
+        if (onEvent) onEvent({ type: 'error', message: errorMsg });
+        return errorMsg;
+    }
+
     let tasks;
     try {
-        tasks = JSON.parse(decomposition);
+        // Handle cases where the model returns text around the JSON
+        const jsonMatch = decomposition.match(/\[\s*\{.*\}\s*\]/s);
+        tasks = JSON.parse(jsonMatch ? jsonMatch[0] : decomposition);
     } catch (e) {
         if (onEvent) onEvent({ type: 'error', message: "Failed to parse decomposition JSON." });
         return decomposition;
+    }
+
+    if (!Array.isArray(tasks)) {
+        return "CEO returned a non-iterable response. Aborting.";
     }
 
     const results = [];
@@ -94,7 +112,7 @@ async function orchestrate(userPrompt, onEvent = null) {
             if (result) {
                 results.push({ role: agent.role, output: result });
             } else {
-                if (onEvent) onEvent({ type: 'error', message: `Agent ${agent.role} failed to respond.` });
+                if (onEvent) onEvent({ type: 'error', message: `Agent ${agent.role} failed to respond after all fallbacks.` });
             }
         }
     }
@@ -107,7 +125,7 @@ async function orchestrate(userPrompt, onEvent = null) {
         { role: 'user', content: `Synthesize the following subtask results into a final response for the user: ${JSON.stringify(results)}` }
     ], orchestrator.fallbackModel);
 
-    return finalReport;
+    return finalReport || "System synthesis failed. Please try again.";
 }
 
 if (require.main === module) {

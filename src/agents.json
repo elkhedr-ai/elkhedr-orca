@@ -4,7 +4,7 @@
     "model": "nvidia/nemotron-3-super-120b-a12b:free",
     "description": "Receives user prompts, decomposes tasks, delegates to subagents, and synthesizes final output.",
     "prompt": "You are the Super Orchestrator (CEO/COO) of Elkhedr Orca. Your goal is to manage a team of 100 specialized subagents. When a user gives a task, break it down into subtasks and identify which specialized agents should handle them. Synthesize their outputs into a final, professional result.",
-    "fallbackModel": "google/gemma-4-31b-it"
+    "fallbackModel": "google/gemma-4-31b-it:free"
   },
   "agents": [
     {
@@ -19,7 +19,7 @@
       "role": "Frontend React Expert",
       "model": "qwen/qwen3-coder:free",
       "department": "Engineering",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
     },
     {
       "id": 4,
@@ -33,7 +33,7 @@
       "role": "Backend Node.js/Express Lead",
       "model": "qwen/qwen3-coder:free",
       "department": "Engineering",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
     },
     {
       "id": 6,
@@ -110,7 +110,7 @@
       "role": "QA Automation Engineer",
       "model": "qwen/qwen3-coder:free",
       "department": "Engineering",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
     },
     {
       "id": 17,
@@ -131,7 +131,7 @@
       "role": "Mobile Android (Kotlin) Developer",
       "model": "qwen/qwen3-coder:free",
       "department": "Engineering",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
     },
     {
       "id": 20,
@@ -180,7 +180,7 @@
       "role": "Game Developer (Unity/C#)",
       "model": "qwen/qwen3-coder:free",
       "department": "Engineering",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
     },
     {
       "id": 27,
@@ -348,7 +348,7 @@
       "role": "Brand Storyteller",
       "model": "meta-llama/llama-3.3-70b-instruct:free",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
     },
     {
       "id": 51,
@@ -397,7 +397,7 @@
       "role": "Chief Marketing Officer",
       "model": "google/gemma-4-31b-it:free",
       "department": "Marketing",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
     },
     {
       "id": 58,
@@ -516,7 +516,7 @@
       "role": "BDR (Business Development Rep)",
       "model": "z-ai/glm-4.5-air:free",
       "department": "Sales",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
     },
     {
       "id": 75,
@@ -684,7 +684,7 @@
       "role": "Business Intelligence (BI) Developer",
       "model": "google/gemma-4-26b-a4b-it:free",
       "department": "Operations",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
     },
     {
       "id": 99,
