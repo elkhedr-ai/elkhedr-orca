@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-const { intro, outro, text, select, spinner, log, isCancel } = require('@clack/prompts');
+const { intro, outro, spinner, log, isCancel } = require('@clack/prompts');
 const chalk = require('chalk');
 const boxen = require('boxen');
 const gradient = require('gradient-string');
 const { orchestrate } = require('./core.js');
 const { CommandRegistry } = require('./commands.js');
+const enquirer = require('enquirer');
 const fs = require('fs');
 const path = require('path');
 
@@ -75,44 +76,67 @@ function renderStatusBar() {
     }));
 }
 
+// Custom Safe Autocomplete class to prevent regex crash
+class SafeAutoComplete extends enquirer.AutoComplete {
+    constructor(options) {
+        super(options);
+    }
+    
+    // Override highlight to safely escape regex characters
+    highlight(str) {
+        if (!this.input) return str;
+        try {
+            // Escape special regex characters from user input
+            const safeInput = this.input.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+            const regex = new RegExp(safeInput, 'ig');
+            return str.replace(regex, chalk.cyan('$&'));
+        } catch (e) {
+            return str; // Fallback to plain string if regex fails
+        }
+    }
+}
+
 async function interactiveSession() {
     await showHeader();
     
     while (true) {
         renderStatusBar();
         
-        let query = await text({
+        const choices = commandRegistry.getCommandList();
+        
+        const prompt = new SafeAutoComplete({
+            name: 'query',
             message: chalk.cyan.bold('🐋 ORCA PROMPT'),
-            placeholder: 'Type your task or / for commands...',
-            validate(value) {
-                if (value.length === 0) return `Prompt cannot be empty!`;
+            choices: choices.map(c => c.name),
+            limit: 10,
+            suggest(input, choices) {
+                // If typing a command, show matching commands
+                if (input.startsWith('/')) {
+                    return choices.filter(choice => choice.name.startsWith(input));
+                }
+                // If typing normal text, don't show command matches in the list
+                return [];
             },
+            footer: () => chalk.dim(' (Type / for commands, or describe your task)')
         });
 
-        if (isCancel(query)) {
+        let query;
+        try {
+            query = await prompt.run();
+        } catch (e) {
             outro(chalk.yellow('Orca system standing down. Session terminated.'));
             process.exit(0);
         }
 
-        // 1. Trigger Command Menu if user types /
-        if (query === '/') {
-            const cmd = await select({
-                message: chalk.magenta('Select a Command'),
-                options: commandRegistry.getCommandList()
-            });
+        if (!query) continue;
 
-            if (isCancel(cmd)) continue;
-            await commandRegistry.execute(cmd);
-            continue;
-        }
-
-        // 2. Handle inline slash commands (e.g., /sandbox off)
+        // 1. Check if it's a command
         if (query.startsWith('/')) {
             const isHandled = await commandRegistry.execute(query);
             if (isHandled) continue;
         }
 
-        // 3. Otherwise, treat as orchestration task
+        // 2. Otherwise, treat as orchestration task
         const s = spinner();
         s.start(chalk.blue('CEO analyzing corporate resources...'));
 
@@ -136,14 +160,16 @@ async function interactiveSession() {
             sessionStats.totalTasks++;
             
             // Real session saving
-            const history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
-            history.push({
-                timestamp: new Date().toISOString(),
-                prompt: query,
-                result: result,
-                tokens: sessionStats.totalTokens
-            });
-            fs.writeFileSync(sessionsPath, JSON.stringify(history, null, 2));
+            if (fs.existsSync(sessionsPath)) {
+                const history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+                history.push({
+                    timestamp: new Date().toISOString(),
+                    prompt: query,
+                    result: result,
+                    tokens: sessionStats.totalTokens
+                });
+                fs.writeFileSync(sessionsPath, JSON.stringify(history, null, 2));
+            }
 
             s.stop(chalk.green('Orchestration Complete'));
             

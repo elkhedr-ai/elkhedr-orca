@@ -1,4 +1,4 @@
-const { intro, outro, select, spinner, log, isCancel } = require('@clack/prompts');
+const { intro, outro, spinner, log, isCancel } = require('@clack/prompts');
 const chalk = require('chalk');
 const boxen = require('boxen');
 const fs = require('fs');
@@ -66,14 +66,17 @@ class CommandRegistry {
 
     getCommandList() {
         return Object.entries(this.commands).map(([cmd, data]) => ({
-            value: cmd,
-            label: `${chalk.bold(cmd)}`,
-            hint: data.description
+            name: cmd,
+            message: `${chalk.bold(cmd)} - ${data.description}`,
+            value: cmd
         }));
     }
 
     async execute(input) {
-        const [cmd, ...args] = input.split(' ');
+        const parts = input.split(' ');
+        const cmd = parts[0];
+        const args = parts.slice(1);
+        
         if (this.commands[cmd]) {
             await this.commands[cmd].execute(args);
             return true;
@@ -106,11 +109,15 @@ class CommandRegistry {
             table.push([a.id, a.role, a.department, a.model]);
         });
 
-        console.log(table.toString());
-        log.info(chalk.dim(`Showing first 15 of 100 agents. Use orca --agents for full list.`));
+        console.log('\n' + table.toString());
+        log.info(chalk.dim(`Showing first 15 of 100 agents. Use /agents search [name] for more.`));
     }
 
     listSessions() {
+        if (!fs.existsSync(sessionsPath)) {
+            log.info('No session history found.');
+            return;
+        }
         const history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
         if (history.length === 0) {
             log.info('No session history found.');
@@ -123,6 +130,10 @@ class CommandRegistry {
     }
 
     listSkills() {
+        if (!fs.existsSync(skillsPath)) {
+            log.info('No skills registry found.');
+            return;
+        }
         const skills = JSON.parse(fs.readFileSync(skillsPath, 'utf8'));
         log.info(chalk.bold('Available Agent Skills:'));
         if (skills.length === 0) {
@@ -133,12 +144,8 @@ class CommandRegistry {
     }
 
     handleModels(args) {
-        if (args[0] === 'set' && args[1] && args[2]) {
-            log.success(`Model override applied.`);
-        } else {
-            log.info(chalk.bold('Current Provider: ') + chalk.green('OpenRouter'));
-            log.info(chalk.dim('To override: /models set [Agent] [Model]'));
-        }
+        log.info(chalk.bold('Current Provider: ') + chalk.green('OpenRouter'));
+        log.info(chalk.dim('Usage: /models set [Agent] [Model]'));
     }
 
     showStats() {
@@ -148,7 +155,7 @@ class CommandRegistry {
             `${chalk.cyan('Tasks:')} ${this.sessionStats.totalTasks}`,
             { padding: 1, borderColor: 'magenta', title: ' SESSION STATS ' }
         );
-        console.log(stats);
+        console.log('\n' + stats);
     }
 
     checkProviders() {
@@ -158,4 +165,3 @@ class CommandRegistry {
 }
 
 module.exports = { CommandRegistry };
-
