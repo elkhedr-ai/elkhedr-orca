@@ -97,11 +97,13 @@ async function orchestrate(userPrompt, onEvent = null) {
         return "CEO returned a non-iterable response. Aborting.";
     }
 
+    let activeCount = 0;
     const results = [];
     for (const task of tasks) {
         const agent = agentsData.agents.find(a => a.id === task.agentId);
         if (agent) {
-            if (onEvent) onEvent({ type: 'agent_start', agent: agent.role, task: task.subtask });
+            activeCount++;
+            if (onEvent) onEvent({ type: 'agent_start', agent: agent.role, task: task.subtask, activeCount });
             else console.log(`[${agent.role}] Executing: ${task.subtask}...`);
             
             const result = await callOpenRouter(agent.model, [
@@ -109,10 +111,11 @@ async function orchestrate(userPrompt, onEvent = null) {
                 { role: 'user', content: task.subtask }
             ], agent.fallbackModel);
             
+            activeCount--;
             if (result) {
                 results.push({ role: agent.role, output: result });
             } else {
-                if (onEvent) onEvent({ type: 'error', message: `Agent ${agent.role} failed to respond after all fallbacks.` });
+                if (onEvent) onEvent({ type: 'error', message: `Agent ${agent.role} failed to respond after all fallbacks.`, activeCount });
             }
         }
     }

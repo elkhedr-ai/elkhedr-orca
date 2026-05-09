@@ -51,6 +51,7 @@ function renderStatusBar() {
     const stats = [
         chalk.cyan(`💰 Cost: $${sessionStats.estimatedCost.toFixed(4)}`),
         chalk.magenta(`🤖 Agent: ${sessionStats.lastModel}`),
+        chalk.blue(`🧵 Threads: ${sessionStats.activeAgents}`),
         chalk.yellow(`⚙️ Tasks: ${sessionStats.totalTasks}`),
         sandboxStatus
     ].join('  |  ');
@@ -89,6 +90,10 @@ async function interactiveSession() {
 
         try {
             const result = await orchestrate(query, (event) => {
+                if (event.activeCount !== undefined) {
+                    sessionStats.activeAgents = event.activeCount;
+                }
+                
                 if (event.type === 'agent_start') {
                     sessionStats.lastModel = event.agent;
                     s.message(chalk.white(`[${chalk.blue(event.agent)}] `) + chalk.dim(event.task));
