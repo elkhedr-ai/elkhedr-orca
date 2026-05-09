@@ -1,0 +1,15 @@
+Issue Type,Summary,Description,Priority,Status,Assignee
+Epic,Orca TUI Core Infrastructure,Build the foundation for a rich terminal interface using Clack and Chalk.,Highest,To Do,Antigravity
+Story,TUI Library Research & Setup,Select and install high-quality terminal libraries (clack, chalk, boxen, ora).,High,To Do,Antigravity
+Story,Command Line Interface (CLI) Mode vs Interactive TUI,Implement a switch to detect if the user wants single-shot CLI or interactive session.,High,To Do,Antigravity
+Story,Splash Screen & Branding,Create a beautiful ASCII splash screen and system initialization sequence.,Medium,To Do,Antigravity
+Epic,Interactive Dashboard Components,Design the visual components that show agent status and logs.,High,To Do,Antigravity
+Story,The Command Bar (Interactive Prompt),Create a persistent interactive input field at the bottom of the terminal.,Highest,To Do,Antigravity
+Story,Agent Activity Feed,Build a scrollable sidebar or log area showing real-time agent delegation (CEO -> Subagent).,High,To Do,Antigravity
+Story,Resource Monitor & Cost Tracking,Display live OpenRouter cost estimates and token usage in a dedicated UI box.,Medium,To Do,Antigravity
+Epic,Enhanced Orchestration Integration,Connect the TUI inputs to the src/index.js core engine.,Highest,To Do,Opencode
+Story,Real-time Log Streaming,Modify the orchestrator to stream events to the TUI instead of static console.logs.,Highest,To Do,Opencode
+Story,Task Progress Visualizers,Implement beautiful spinners and progress bars for long-running agent tasks.,High,To Do,Antigravity
+Epic,Deployment & Documentation,Finalize the TUI and update project guides.,Medium,To Do,Lingma
+Story,TUI Documentation & Keybindings Guide,Write a guide on how to navigate the TUI and use shortcuts.,Medium,To Do,Lingma
+Story,Update Installer for TUI,Ensure the 'orca' command defaults to the new TUI if no prompt is provided.,High,To Do,Opencode

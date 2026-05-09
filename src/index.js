@@ -26,10 +26,12 @@ async function callOpenRouter(model, messages) {
     }
 }
 
-async function orchestrate(userPrompt) {
+async function orchestrate(userPrompt, onEvent = null) {
     const orchestrator = agentsData.orchestrator;
-    console.log(`[CEO] Analyzing task: "${userPrompt}"...`);
-
+    if (onEvent) onEvent({ type: 'status', message: `CEO Analyzing task: "${userPrompt}"...` });
+    else console.log(`[CEO] Analyzing task: "${userPrompt}"...`);
+    
+    // ... decomposition logic ...
     const decompositionPrompt = `
     User Prompt: ${userPrompt}
     Available Agents: ${agentsData.agents.map(a => `${a.id}: ${a.role} (${a.department})`).join(', ')}
@@ -47,7 +49,7 @@ async function orchestrate(userPrompt) {
     try {
         tasks = JSON.parse(decomposition);
     } catch (e) {
-        console.error("Failed to parse decomposition JSON. Fallback to raw output.");
+        if (onEvent) onEvent({ type: 'error', message: "Failed to parse decomposition JSON." });
         return decomposition;
     }
 
@@ -55,7 +57,9 @@ async function orchestrate(userPrompt) {
     for (const task of tasks) {
         const agent = agentsData.agents.find(a => a.id === task.agentId);
         if (agent) {
-            console.log(`[${agent.role}] Executing: ${task.subtask}...`);
+            if (onEvent) onEvent({ type: 'agent_start', agent: agent.role, task: task.subtask });
+            else console.log(`[${agent.role}] Executing: ${task.subtask}...`);
+            
             const result = await callOpenRouter(agent.model, [
                 { role: 'system', content: `You are the ${agent.role} in the ${agent.department} department.` },
                 { role: 'user', content: task.subtask }
@@ -64,7 +68,9 @@ async function orchestrate(userPrompt) {
         }
     }
 
-    console.log(`[CEO] Synthesizing final report...`);
+    if (onEvent) onEvent({ type: 'status', message: `CEO Synthesizing final report...` });
+    else console.log(`[CEO] Synthesizing final report...`);
+
     const finalReport = await callOpenRouter(orchestrator.model, [
         { role: 'system', content: orchestrator.prompt },
         { role: 'user', content: `Synthesize the following subtask results into a final response for the user: ${JSON.stringify(results)}` }
@@ -78,7 +84,10 @@ if (require.main === module) {
     if (args.length > 0) {
         orchestrate(args.join(' ')).then(console.log);
     } else {
-        console.log("Please provide a prompt. Usage: node src/index.js \"Your task here\"");
+        // Dynamic import to avoid circular dependency if needed, 
+        // but here we just require since tui.js requires index.js
+        const { interactiveSession } = require('./tui.js');
+        interactiveSession().catch(console.error);
     }
 }
 
