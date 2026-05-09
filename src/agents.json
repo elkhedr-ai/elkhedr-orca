@@ -1,711 +1,711 @@
 {
   "orchestrator": {
     "role": "Super Orchestrator (CEO/COO)",
-    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
     "description": "Receives user prompts, decomposes tasks, delegates to subagents, and synthesizes final output.",
     "prompt": "You are the Super Orchestrator (CEO/COO) of Elkhedr Orca. Your goal is to manage a team of 100 specialized subagents. When a user gives a task, break it down into subtasks and identify which specialized agents should handle them. Synthesize their outputs into a final, professional result.",
-    "fallbackModel": "google/gemma-4-31b-it:free"
+    "fallbackModel": "google/gemma-4-31b-it"
   },
   "agents": [
     {
       "id": 2,
       "role": "Chief Software Architect",
-      "model": "google/gemma-4-31b-it:free",
+      "model": "google/gemma-4-31b-it",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 3,
       "role": "Frontend React Expert",
-      "model": "qwen/qwen3-coder:free",
+      "model": "qwen/qwen3-coder",
       "department": "Engineering",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 4,
       "role": "Frontend Vue/Svelte Expert",
       "model": "openrouter/pareto-code",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 5,
       "role": "Backend Node.js/Express Lead",
-      "model": "qwen/qwen3-coder:free",
+      "model": "qwen/qwen3-coder",
       "department": "Engineering",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 6,
       "role": "Backend Python/FastAPI Lead",
       "model": "mistralai/codestral-2508",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 7,
       "role": "Backend Rust Performance Engineer",
       "model": "kwaipilot/kat-coder-pro-v2",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 8,
       "role": "Backend Go Microservices Engineer",
       "model": "qwen/qwen3-coder-next",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 9,
       "role": "Database Architect (Postgres/SQL)",
-      "model": "google/gemma-4-26b-a4b-it:free",
+      "model": "google/gemma-4-26b-a4b-it",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 10,
       "role": "NoSQL / Redis Expert",
       "model": "qwen/qwen-turbo",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 11,
       "role": "DevOps CI/CD Specialist",
       "model": "mistralai/devstral-2512",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 12,
       "role": "Kubernetes/Docker Orchestrator",
       "model": "google/gemma-3n-e4b-it",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 13,
       "role": "Cloud Infrastructure Architect",
       "model": "google/gemma-4-26b-a4b-it",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 14,
       "role": "Security Auditor (AppSec)",
       "model": "meta-llama/llama-guard-4-12b",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 15,
       "role": "Penetration Tester",
-      "model": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+      "model": "cognitivecomputations/dolphin-mistral-24b-venice-edition",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 16,
       "role": "QA Automation Engineer",
-      "model": "qwen/qwen3-coder:free",
+      "model": "qwen/qwen3-coder",
       "department": "Engineering",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 17,
       "role": "Unit Testing Specialist",
-      "model": "liquid/lfm-2.5-1.2b-thinking:free",
+      "model": "liquid/lfm-2.5-1.2b-thinking",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 18,
       "role": "Mobile iOS (SwiftUI) Developer",
       "model": "mistralai/codestral-2508",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 19,
       "role": "Mobile Android (Kotlin) Developer",
-      "model": "qwen/qwen3-coder:free",
+      "model": "qwen/qwen3-coder",
       "department": "Engineering",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 20,
       "role": "Mobile Flutter Developer",
       "model": "z-ai/glm-5.1",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 21,
       "role": "API Integration Specialist",
       "model": "essentialai/rnj-1-instruct",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 22,
       "role": "Data Engineer",
       "model": "ibm-granite/granite-4.1-8b",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 23,
       "role": "Machine Learning Engineer",
       "model": "deepseek/deepseek-v4-pro",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 24,
       "role": "AI Prompt Engineer",
       "model": "arcee-ai/trinity-large-thinking",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 25,
       "role": "Web3/Solidity Developer",
       "model": "mistralai/codestral-2508",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 26,
       "role": "Game Developer (Unity/C#)",
-      "model": "qwen/qwen3-coder:free",
+      "model": "qwen/qwen3-coder",
       "department": "Engineering",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 27,
       "role": "Game Developer (Unreal/C++)",
       "model": "allenai/olmo-3-32b-think",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 28,
       "role": "Embedded Systems Engineer",
-      "model": "google/gemma-4-31b-it:free",
+      "model": "google/gemma-4-31b-it",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 29,
       "role": "Performance Optimization Expert",
       "model": "x-ai/grok-4.3",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 30,
       "role": "Accessibility (a11y) Expert",
       "model": "meta-llama/llama-3.2-11b-vision-instruct",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 31,
       "role": "Localization/i18n Engineer",
       "model": "tencent/hy3-preview",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 32,
       "role": "Data Scientist",
       "model": "z-ai/glm-4.6v",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 33,
       "role": "Linux Systems Administrator",
-      "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "model": "nvidia/nemotron-3-nano-30b-a3b",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 34,
       "role": "Network Engineer",
       "model": "amazon/nova-lite-v1",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 35,
       "role": "Cryptography Specialist",
       "model": "prime-intellect/intellect-3",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 36,
       "role": "Web Scraper / Spider Bot",
-      "model": "baidu/qianfan-ocr-fast:free",
+      "model": "baidu/qianfan-ocr-fast",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 37,
       "role": "Technical Debt Manager",
       "model": "rekaai/reka-edge",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 38,
       "role": "API Documentation Generator",
-      "model": "liquid/lfm-2.5-1.2b-instruct:free",
+      "model": "liquid/lfm-2.5-1.2b-instruct",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 39,
       "role": "Open Source Maintainer",
       "model": "meta-llama/llama-3.2-3b-instruct",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 40,
       "role": "Code Reviewer",
       "model": "meta-llama/llama-guard-3-8b",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 41,
       "role": "Release Manager",
       "model": "amazon/nova-micro-v1",
       "department": "Engineering",
-      "fallbackModel": "qwen/qwen3-coder:free"
+      "fallbackModel": "qwen/qwen3-coder"
     },
     {
       "id": 42,
       "role": "Creative Director",
-      "model": "nousresearch/hermes-3-llama-3.1-405b:free",
+      "model": "nousresearch/hermes-3-llama-3.1-405b",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 43,
       "role": "UI Designer",
-      "model": "nvidia/nemotron-nano-12b-v2-vl:free",
+      "model": "nvidia/nemotron-nano-12b-v2-vl",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 44,
       "role": "UX Researcher",
       "model": "arcee-ai/trinity-large-preview",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 45,
       "role": "Graphic Designer (Prompt Gen)",
       "model": "black-forest-labs/flux.2-pro",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 46,
       "role": "Motion Graphics Scripter",
-      "model": "qwen/qwen3-coder:free",
+      "model": "qwen/qwen3-coder",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 47,
       "role": "3D Asset Modeler",
       "model": "sourceful/riverflow-v2-max-preview",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 48,
       "role": "Video Script Writer",
       "model": "cohere/command-r7b-12-2024",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 49,
       "role": "Audio/Podcast Producer",
-      "model": "minimax/minimax-m2.5:free",
+      "model": "minimax/minimax-m2.5",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 50,
       "role": "Brand Storyteller",
-      "model": "meta-llama/llama-3.3-70b-instruct:free",
+      "model": "meta-llama/llama-3.3-70b-instruct",
       "department": "Creative",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 51,
       "role": "Copywriter (Ad Creatives)",
       "model": "sao10k/l3.1-euryale-70b",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 52,
       "role": "Long-form Content Writer",
       "model": "nousresearch/hermes-4-70b",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 53,
       "role": "Technical Writer",
-      "model": "google/gemma-4-26b-a4b-it:free",
+      "model": "google/gemma-4-26b-a4b-it",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 54,
       "role": "Presentation/Pitch Deck Designer",
       "model": "xiaomi/mimo-v2.5-pro",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 55,
       "role": "Email Newsletter Editor",
-      "model": "z-ai/glm-4.5-air:free",
+      "model": "z-ai/glm-4.5-air",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 56,
       "role": "Typography Specialist",
       "model": "google/gemini-3.1-flash-image-preview",
       "department": "Creative",
-      "fallbackModel": "meta-llama/llama-3.3-70b-instruct:free"
+      "fallbackModel": "meta-llama/llama-3.3-70b-instruct"
     },
     {
       "id": 57,
       "role": "Chief Marketing Officer",
-      "model": "google/gemma-4-31b-it:free",
+      "model": "google/gemma-4-31b-it",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 58,
       "role": "SEO Strategist",
       "model": "x-ai/grok-4-fast",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 59,
       "role": "Growth Hacker",
-      "model": "poolside/laguna-m.1:free",
+      "model": "poolside/laguna-m.1",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 60,
       "role": "Social Media Manager (Twitter/X)",
       "model": "x-ai/grok-4.3",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 61,
       "role": "Social Media Manager (LinkedIn)",
-      "model": "meta-llama/llama-3.3-70b-instruct:free",
+      "model": "meta-llama/llama-3.3-70b-instruct",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 62,
       "role": "Social Media Manager (Instagram/TikTok)",
       "model": "meta-llama/llama-3.2-11b-vision-instruct",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 63,
       "role": "PPC Campaign Manager",
-      "model": "z-ai/glm-4.5-air:free",
+      "model": "z-ai/glm-4.5-air",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 64,
       "role": "Influencer Outreach Coordinator",
       "model": "arcee-ai/trinity-mini",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 65,
       "role": "Public Relations (PR) Specialist",
       "model": "meta-llama/llama-3-8b-instruct",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 66,
       "role": "Community Manager",
       "model": "gryphe/mythomax-l2-13b",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 67,
       "role": "Affiliate Marketing Manager",
       "model": "upstage/solar-pro-3",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 68,
       "role": "Market Researcher",
       "model": "deepseek/deepseek-v4-pro",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 69,
       "role": "Conversion Rate Optimizer (CRO)",
       "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 70,
       "role": "Analytics Interpreter",
-      "model": "google/gemma-4-26b-a4b-it:free",
+      "model": "google/gemma-4-26b-a4b-it",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 71,
       "role": "Event/Webinar Coordinator",
-      "model": "baidu/cobuddy:free",
+      "model": "baidu/cobuddy",
       "department": "Marketing",
-      "fallbackModel": "google/gemma-4-31b-it:free"
+      "fallbackModel": "google/gemma-4-31b-it"
     },
     {
       "id": 72,
       "role": "VP of Sales",
-      "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 73,
       "role": "Lead Generation Specialist",
-      "model": "poolside/laguna-xs.2:free",
+      "model": "poolside/laguna-xs.2",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 74,
       "role": "BDR (Business Development Rep)",
-      "model": "z-ai/glm-4.5-air:free",
+      "model": "z-ai/glm-4.5-air",
       "department": "Sales",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 75,
       "role": "Account Executive (Closer)",
-      "model": "meta-llama/llama-3.3-70b-instruct:free",
+      "model": "meta-llama/llama-3.3-70b-instruct",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 76,
       "role": "Sales Engineer",
-      "model": "qwen/qwen3-coder:free",
+      "model": "qwen/qwen3-coder",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 77,
       "role": "Customer Success Manager",
       "model": "cohere/command-r-08-2024",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 78,
       "role": "Onboarding Specialist",
-      "model": "inclusionai/ring-2.6-1t:free",
+      "model": "inclusionai/ring-2.6-1t",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 79,
       "role": "Tier 1 Support (General)",
-      "model": "liquid/lfm-2.5-1.2b-instruct:free",
+      "model": "liquid/lfm-2.5-1.2b-instruct",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 80,
       "role": "Tier 2 Support (Technical)",
-      "model": "google/gemma-4-26b-a4b-it:free",
+      "model": "google/gemma-4-26b-a4b-it",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 81,
       "role": "Tier 3 Support (Engineering)",
       "model": "mistralai/codestral-2508",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 82,
       "role": "Customer Feedback Analyst",
       "model": "rekaai/reka-flash-3",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 83,
       "role": "Churn Prevention Strategist",
       "model": "tencent/hunyuan-a13b-instruct",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 84,
       "role": "Upsell/Cross-sell Specialist",
       "model": "z-ai/glm-4.5-air",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 85,
       "role": "CRM Architect",
       "model": "ibm-granite/granite-4.1-8b",
       "department": "Sales",
-      "fallbackModel": "z-ai/glm-4.5-air:free"
+      "fallbackModel": "z-ai/glm-4.5-air"
     },
     {
       "id": 86,
       "role": "Chief Operating Officer (COO)",
-      "model": "google/gemma-4-31b-it:free",
+      "model": "google/gemma-4-31b-it",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 87,
       "role": "Agile Scrum Master",
-      "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "model": "nvidia/nemotron-3-nano-30b-a3b",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 88,
       "role": "Product Manager",
       "model": "~moonshotai/kimi-latest",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 89,
       "role": "Technical Program Manager",
       "model": "stepfun/step-3.5-flash",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 90,
       "role": "HR/Recruiting Specialist",
       "model": "xiaomi/mimo-v2-omni",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 91,
       "role": "Employee Training Coordinator",
       "model": "amazon/nova-lite-v1",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 92,
       "role": "Chief Financial Officer (CFO)",
       "model": "deepseek/deepseek-v4-pro",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 93,
       "role": "Financial Modeler",
-      "model": "qwen/qwen3-coder:free",
+      "model": "qwen/qwen3-coder",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 94,
       "role": "Legal Counsel (Contracts)",
-      "model": "nousresearch/hermes-3-llama-3.1-405b:free",
+      "model": "nousresearch/hermes-3-llama-3.1-405b",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 95,
       "role": "Data Privacy Officer (GDPR/CCPA)",
       "model": "meta-llama/llama-guard-4-12b",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 96,
       "role": "Supply Chain / Logistics Planner",
       "model": "z-ai/glm-4.6v",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 97,
       "role": "Risk Management Analyst",
       "model": "google/gemma-3-27b-it",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 98,
       "role": "Business Intelligence (BI) Developer",
-      "model": "google/gemma-4-26b-a4b-it:free",
+      "model": "google/gemma-4-26b-a4b-it",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 99,
       "role": "Vendor Negotiator",
-      "model": "meta-llama/llama-3.3-70b-instruct:free",
+      "model": "meta-llama/llama-3.3-70b-instruct",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 100,
       "role": "Executive Assistant",
-      "model": "nvidia/nemotron-nano-12b-v2-vl:free",
+      "model": "nvidia/nemotron-nano-12b-v2-vl",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     },
     {
       "id": 101,
       "role": "Sustainability & Ethics Officer",
       "model": "meta-llama/llama-guard-4-12b",
       "department": "Operations",
-      "fallbackModel": "google/gemma-4-26b-a4b-it:free"
+      "fallbackModel": "google/gemma-4-26b-a4b-it"
     }
   ]
 }

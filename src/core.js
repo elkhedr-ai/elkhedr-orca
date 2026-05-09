@@ -8,7 +8,7 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'), 'utf8'));
 
 // Universal fallback to a highly available free model if primary and secondary fail
-const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it:free";
+const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it";
 
 async function callOpenRouter(model, messages, fallbackModel = null) {
     if (!OPENROUTER_API_KEY) {
