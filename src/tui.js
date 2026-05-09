@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-const { intro, outro, text, spinner, log, isCancel } = require('@clack/prompts');
+const { intro, outro, spinner, log, isCancel } = require('@clack/prompts');
 const chalk = require('chalk');
 const boxen = require('boxen');
 const gradient = require('gradient-string');
 const { orchestrate } = require('./core.js');
+const { CommandRegistry } = require('./commands.js');
+const { Autocomplete } = require('enquirer');
 const termSize = () => {
     const ts = require('terminal-size');
     return (typeof ts === 'function' ? ts : ts.default)();
@@ -14,9 +16,12 @@ let sessionStats = {
     totalTasks: 0,
     activeAgents: 0,
     estimatedCost: 0.00,
+    totalTokens: 0,
     sandbox: true,
     lastModel: 'N/A'
 };
+
+const commandRegistry = new CommandRegistry(sessionStats);
 
 function centerText(text) {
     const { columns } = termSize();
@@ -49,7 +54,7 @@ function renderStatusBar() {
     const { columns } = termSize();
     const sandboxStatus = sessionStats.sandbox ? chalk.green('● SANDBOX ON') : chalk.red('○ SANDBOX OFF');
     const stats = [
-        chalk.cyan(`💰 Cost: $${sessionStats.estimatedCost.toFixed(4)}`),
+        chalk.cyan(`💰 Cost: $${sessionStats.estimatedCost.toFixed(5)}`),
         chalk.magenta(`🤖 Agent: ${sessionStats.lastModel}`),
         chalk.blue(`🧵 Threads: ${sessionStats.activeAgents}`),
         chalk.yellow(`⚙️ Tasks: ${sessionStats.totalTasks}`),
@@ -60,7 +65,7 @@ function renderStatusBar() {
         width: Math.min(columns - 4, 100),
         textAlignment: 'center',
         borderStyle: 'round',
-        borderColor: '#333',
+        borderColor: '#444',
         padding: 0,
         margin: { left: Math.floor((columns - Math.min(columns - 4, 100)) / 2) }
     }));
@@ -72,19 +77,37 @@ async function interactiveSession() {
     while (true) {
         renderStatusBar();
         
-        const query = await text({
+        // Use Enquirer Autocomplete for commands and free text
+        const prompt = new Autocomplete({
+            name: 'query',
             message: chalk.cyan.bold('🐋 ORCA PROMPT'),
-            placeholder: 'Type your command (e.g., "Build a React dashboard")...',
-            validate(value) {
-                if (value.length === 0) return `Prompt cannot be empty!`;
-            },
+            choices: commandRegistry.getCommandList().map(c => c.name),
+            limit: 10,
+            suggest(input, choices) {
+                if (input.startsWith('/')) {
+                    return choices.filter(choice => choice.name.startsWith(input));
+                }
+                return []; // Don't suggest for normal text
+            }
         });
 
-        if (isCancel(query)) {
+        let query;
+        try {
+            query = await prompt.run();
+        } catch (e) {
             outro(chalk.yellow('Orca system standing down. Session terminated.'));
             process.exit(0);
         }
 
+        if (!query) continue;
+
+        // 1. Check if it's a command
+        if (query.startsWith('/')) {
+            const isHandled = await commandRegistry.execute(query);
+            if (isHandled) continue;
+        }
+
+        // 2. Otherwise, treat as orchestration task
         const s = spinner();
         s.start(chalk.blue('CEO analyzing corporate resources...'));
 
@@ -99,13 +122,14 @@ async function interactiveSession() {
                     s.message(chalk.white(`[${chalk.blue(event.agent)}] `) + chalk.dim(event.task));
                 } else if (event.type === 'status') {
                     s.message(chalk.yellow(event.message));
+                } else if (event.type === 'usage' && event.usage) {
+                    sessionStats.totalTokens += event.usage.total_tokens;
+                    // Simple average pricing for display
+                    sessionStats.estimatedCost += (event.usage.total_tokens / 1000000) * 0.50; 
                 }
-            });
+            }, sessionStats);
 
             sessionStats.totalTasks++;
-            // Simulate cost logic for UI (In real usage, we would parse token counts)
-            sessionStats.estimatedCost += 0.0012; 
-
             s.stop(chalk.green('Orchestration Complete'));
             
             const { columns } = termSize();

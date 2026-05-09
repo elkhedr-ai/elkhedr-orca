@@ -24,6 +24,7 @@
     "cli-cursor": "^5.0.0",
     "cli-table3": "^0.6.5",
     "dotenv": "^17.4.2",
+    "enquirer": "^2.4.1",
     "gradient-string": "^2.0.2",
     "ora": "^5.4.1",
     "terminal-size": "^4.0.1",

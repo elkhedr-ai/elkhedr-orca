@@ -10,9 +10,15 @@ const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'
 // Universal fallback to a highly available free model if primary and secondary fail
 const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it";
 
-async function callOpenRouter(model, messages, fallbackModel = null) {
+async function callOpenRouter(model, messages, fallbackModel = null, sandbox = false) {
     if (!OPENROUTER_API_KEY) {
         throw new Error("OPENROUTER_API_KEY is missing. Please check your .env file or environment variables.");
+    }
+
+    // Inject Sandbox constraints if active
+    if (sandbox) {
+        const sandboxPrompt = `SECURITY OVERRIDE: You are operating in a restricted Sandbox. You may ONLY propose, read, or write files within the absolute path: ~/elkhedr-orca-sandbox/. Any attempt to access paths outside this directory must be blocked.`;
+        messages.unshift({ role: 'system', content: sandboxPrompt });
     }
 
     const tryCall = async (targetModel) => {
@@ -29,7 +35,11 @@ async function callOpenRouter(model, messages, fallbackModel = null) {
             });
             
             if (response.data && response.data.choices && response.data.choices[0]) {
-                return response.data.choices[0].message.content;
+                // Return both content and usage for tracking
+                return {
+                    content: response.data.choices[0].message.content,
+                    usage: response.data.usage
+                };
             }
             return null;
         } catch (error) {
@@ -59,7 +69,7 @@ async function callOpenRouter(model, messages, fallbackModel = null) {
     return null;
 }
 
-async function orchestrate(userPrompt, onEvent = null) {
+async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
     const orchestrator = agentsData.orchestrator;
     if (onEvent) onEvent({ type: 'status', message: `CEO Analyzing task: "${userPrompt}"...` });
     else console.log(`[CEO] Analyzing task: "${userPrompt}"...`);
@@ -72,20 +82,22 @@ async function orchestrate(userPrompt, onEvent = null) {
     Return the response in JSON format: [{"agentId": number, "subtask": "description"}]
     `;
 
-    const decomposition = await callOpenRouter(orchestrator.model, [
+    const decompResult = await callOpenRouter(orchestrator.model, [
         { role: 'system', content: orchestrator.prompt },
         { role: 'user', content: decompositionPrompt }
-    ], orchestrator.fallbackModel);
+    ], orchestrator.fallbackModel, sessionStats.sandbox);
 
-    if (!decomposition) {
+    if (!decompResult) {
         const errorMsg = "Critical failure: CEO could not decompose the task even with fallbacks.";
         if (onEvent) onEvent({ type: 'error', message: errorMsg });
         return errorMsg;
     }
 
+    const { content: decomposition, usage: decompUsage } = decompResult;
+    if (onEvent && decompUsage) onEvent({ type: 'usage', usage: decompUsage });
+
     let tasks;
     try {
-        // Handle cases where the model returns text around the JSON
         const jsonMatch = decomposition.match(/\[\s*\{.*\}\s*\]/s);
         tasks = JSON.parse(jsonMatch ? jsonMatch[0] : decomposition);
     } catch (e) {
@@ -106,14 +118,16 @@ async function orchestrate(userPrompt, onEvent = null) {
             if (onEvent) onEvent({ type: 'agent_start', agent: agent.role, task: task.subtask, activeCount });
             else console.log(`[${agent.role}] Executing: ${task.subtask}...`);
             
-            const result = await callOpenRouter(agent.model, [
+            const agentResult = await callOpenRouter(agent.model, [
                 { role: 'system', content: `You are the ${agent.role} in the ${agent.department} department.` },
                 { role: 'user', content: task.subtask }
-            ], agent.fallbackModel);
+            ], agent.fallbackModel, sessionStats.sandbox);
             
             activeCount--;
-            if (result) {
-                results.push({ role: agent.role, output: result });
+            if (agentResult) {
+                const { content: resContent, usage: agentUsage } = agentResult;
+                if (onEvent && agentUsage) onEvent({ type: 'usage', usage: agentUsage });
+                results.push({ role: agent.role, output: resContent });
             } else {
                 if (onEvent) onEvent({ type: 'error', message: `Agent ${agent.role} failed to respond after all fallbacks.`, activeCount });
             }
@@ -123,12 +137,14 @@ async function orchestrate(userPrompt, onEvent = null) {
     if (onEvent) onEvent({ type: 'status', message: `CEO Synthesizing final report...` });
     else console.log(`[CEO] Synthesizing final report...`);
 
-    const finalReport = await callOpenRouter(orchestrator.model, [
+    const finalResult = await callOpenRouter(orchestrator.model, [
         { role: 'system', content: orchestrator.prompt },
         { role: 'user', content: `Synthesize the following subtask results into a final response for the user: ${JSON.stringify(results)}` }
-    ], orchestrator.fallbackModel);
+    ], orchestrator.fallbackModel, sessionStats.sandbox);
 
-    return finalReport || "System synthesis failed. Please try again.";
+    if (finalResult && onEvent && finalResult.usage) onEvent({ type: 'usage', usage: finalResult.usage });
+
+    return (finalResult ? finalResult.content : null) || "System synthesis failed. Please try again.";
 }
 
 if (require.main === module) {
