@@ -7,7 +7,7 @@ require('dotenv').config();
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'), 'utf8'));
 
-async function callOpenRouter(model, messages) {
+async function callOpenRouter(model, messages, fallbackModel = null) {
     try {
         const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
             model: model,
@@ -21,7 +21,27 @@ async function callOpenRouter(model, messages) {
         });
         return response.data.choices[0].message.content;
     } catch (error) {
-        console.error(`Error calling model ${model}:`, error.message);
+        console.error(`⚠️  Primary model failed (${model}): ${error.message}`);
+        
+        if (fallbackModel) {
+            console.log(`🔄 Routing to fallback model: ${fallbackModel}...`);
+            try {
+                const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+                    model: fallbackModel,
+                    messages: messages
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                        'HTTP-Referer': 'https://github.com/ekagent/elkhedr-orca',
+                        'X-Title': 'Elkhedr Orca'
+                    }
+                });
+                return response.data.choices[0].message.content;
+            } catch (fallbackError) {
+                console.error(`❌ Fallback model also failed (${fallbackModel}): ${fallbackError.message}`);
+                return null;
+            }
+        }
         return null;
     }
 }
@@ -31,7 +51,6 @@ async function orchestrate(userPrompt, onEvent = null) {
     if (onEvent) onEvent({ type: 'status', message: `CEO Analyzing task: "${userPrompt}"...` });
     else console.log(`[CEO] Analyzing task: "${userPrompt}"...`);
     
-    // ... decomposition logic ...
     const decompositionPrompt = `
     User Prompt: ${userPrompt}
     Available Agents: ${agentsData.agents.map(a => `${a.id}: ${a.role} (${a.department})`).join(', ')}
@@ -43,7 +62,7 @@ async function orchestrate(userPrompt, onEvent = null) {
     const decomposition = await callOpenRouter(orchestrator.model, [
         { role: 'system', content: orchestrator.prompt },
         { role: 'user', content: decompositionPrompt }
-    ]);
+    ], orchestrator.fallbackModel);
 
     let tasks;
     try {
@@ -63,8 +82,13 @@ async function orchestrate(userPrompt, onEvent = null) {
             const result = await callOpenRouter(agent.model, [
                 { role: 'system', content: `You are the ${agent.role} in the ${agent.department} department.` },
                 { role: 'user', content: task.subtask }
-            ]);
-            results.push({ role: agent.role, output: result });
+            ], agent.fallbackModel);
+            
+            if (result) {
+                results.push({ role: agent.role, output: result });
+            } else {
+                if (onEvent) onEvent({ type: 'error', message: `Agent ${agent.role} failed to respond.` });
+            }
         }
     }
 
@@ -74,7 +98,7 @@ async function orchestrate(userPrompt, onEvent = null) {
     const finalReport = await callOpenRouter(orchestrator.model, [
         { role: 'system', content: orchestrator.prompt },
         { role: 'user', content: `Synthesize the following subtask results into a final response for the user: ${JSON.stringify(results)}` }
-    ]);
+    ], orchestrator.fallbackModel);
 
     return finalReport;
 }
