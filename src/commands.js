@@ -55,6 +55,14 @@ class CommandRegistry {
                 description: 'Clear the terminal screen',
                 execute: () => console.clear()
             },
+            '/reset': {
+                label: 'Reset Mode',
+                description: 'Return to standard CEO Orchestration mode',
+                execute: () => {
+                    this.sessionStats.currentAgent = null;
+                    log.success('Back to CEO Mode.');
+                }
+            },
             '/exit': {
                 label: 'Exit',
                 description: 'Terminate the Orca session',
@@ -151,18 +159,9 @@ class CommandRegistry {
             fs.writeFileSync(agentsDataPath, JSON.stringify(agentsData, null, 2));
             log.success(`Successfully updated ${agent.role} model.`);
         } else if (action === 'task') {
-            const taskPrompt = new enquirer.Input({
-                message: `Task for ${agent.role}:`
-            });
-            const directTask = await taskPrompt.run();
-            // Call runSingleAgent via callback or reference
-            if (this.orchestratorRef && this.orchestratorRef.runSingleAgent) {
-                const s = spinner();
-                s.start(`Executing direct task via ${agent.role}...`);
-                const result = await this.orchestratorRef.runSingleAgent(agent.id, directTask, null, this.sessionStats);
-                s.stop('Execution complete.');
-                console.log(boxen(result, { padding: 1, title: 'DIRECT AGENT OUTPUT' }));
-            }
+            // Set this agent as the persistent session agent
+            this.sessionStats.currentAgent = agent;
+            log.success(chalk.bold.green(`\n🚀 SESSION MODE: DIRECT AGENT\n`) + `You are now talking directly to the ${chalk.blue(agent.role)}.\nType ${chalk.yellow('/reset')} to return to CEO mode.`);
         }
     }
 

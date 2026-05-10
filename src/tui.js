@@ -23,7 +23,8 @@ let sessionStats = {
     estimatedCost: 0.00,
     totalTokens: 0,
     sandbox: true,
-    lastModel: 'N/A'
+    lastModel: 'N/A',
+    currentAgent: null // Track persistent agent mode
 };
 
 // Initialize Registry with reference to core for direct tasks
@@ -59,14 +60,18 @@ async function showHeader() {
 function renderStatusBar() {
     const { columns } = termSize();
     const sandboxStatus = sessionStats.sandbox ? chalk.green('● SANDBOX ON') : chalk.red('○ SANDBOX OFF');
+    const mode = sessionStats.currentAgent 
+        ? chalk.bgBlue.white(` 🤖 DIRECT: ${sessionStats.currentAgent.role.toUpperCase()} `)
+        : chalk.bgCyan.black(' 🐋 MODE: CEO ORCHESTRATION ');
+
     const stats = [
-        chalk.cyan(`💰 Cost: $${sessionStats.estimatedCost.toFixed(5)}`),
-        chalk.magenta(`🤖 Agent: ${sessionStats.lastModel}`),
+        chalk.cyan(`💰 $${sessionStats.estimatedCost.toFixed(5)}`),
         chalk.blue(`🧵 Threads: ${sessionStats.activeAgents}`),
         chalk.yellow(`⚙️ Tasks: ${sessionStats.totalTasks}`),
         sandboxStatus
     ].join('  |  ');
 
+    console.log(centerText(mode));
     console.log(boxen(stats, {
         width: Math.min(columns - 4, 100),
         textAlignment: 'center',
@@ -83,15 +88,23 @@ class OrcaPrompt extends enquirer.AutoComplete {
         super(options);
     }
     
-    // Override render to control choices visibility
-    async render() {
-        if (!this.input.startsWith('/')) {
-            this.state.index = -1; // Deselect any command
+    // Override submit to allow free text even if no choice is matched
+    async submit() {
+        if (this.state.index === -1 || !this.input.startsWith('/')) {
+            this.state.submitted = true;
+            this.state.validating = true;
+            
+            // This is the key: if not a command, treat input as the literal value
+            await this.validate(this.input, this.state);
+            await this.render();
+            await this.close();
+            
+            this.emit('submit', this.input);
+            return;
         }
-        return super.render();
+        return super.submit();
     }
 
-    // Override renderChoices to HIDE list unless typing /
     renderChoices() {
         if (!this.input.startsWith('/')) {
             return '';
@@ -99,7 +112,6 @@ class OrcaPrompt extends enquirer.AutoComplete {
         return super.renderChoices();
     }
 
-    // Fix regex highlight crash
     highlight(str) {
         if (!this.input) return str;
         try {
@@ -119,10 +131,11 @@ async function interactiveSession() {
         renderStatusBar();
         
         const choices = commandRegistry.getCommandList();
-        
+        const promptLabel = sessionStats.currentAgent ? chalk.blue.bold(`🤖 ${sessionStats.currentAgent.role.split(' ')[0].toUpperCase()}`) : chalk.cyan.bold('🐋 ORCA');
+
         const prompt = new OrcaPrompt({
             name: 'query',
-            message: chalk.cyan.bold('🐋 ORCA PROMPT'),
+            message: promptLabel,
             choices: choices.map(c => c.name),
             limit: 10,
             suggest(input, choices) {
@@ -150,26 +163,37 @@ async function interactiveSession() {
             if (isHandled) continue;
         }
 
-        // 2. Otherwise, treat as orchestration task
+        // 2. Execution Logic
         const s = spinner();
-        s.start(chalk.blue('CEO analyzing corporate resources...'));
+        s.start(chalk.blue(sessionStats.currentAgent ? `Consulting ${sessionStats.currentAgent.role}...` : 'CEO analyzing corporate resources...'));
 
         try {
-            const result = await core.orchestrate(query, (event) => {
-                if (event.activeCount !== undefined) {
-                    sessionStats.activeAgents = event.activeCount;
-                }
-                
-                if (event.type === 'agent_start') {
-                    sessionStats.lastModel = event.agent;
-                    s.message(chalk.white(`[${chalk.blue(event.agent)}] `) + chalk.dim(event.task));
-                } else if (event.type === 'status') {
-                    s.message(chalk.yellow(event.message));
-                } else if (event.type === 'usage' && event.usage) {
-                    sessionStats.totalTokens += event.usage.total_tokens;
-                    sessionStats.estimatedCost += (event.usage.total_tokens / 1000000) * 0.50; 
-                }
-            }, sessionStats);
+            let result;
+            if (sessionStats.currentAgent) {
+                // Direct Agent Mode
+                result = await core.runSingleAgent(sessionStats.currentAgent.id, query, (event) => {
+                    if (event.type === 'usage' && event.usage) {
+                        sessionStats.totalTokens += event.usage.total_tokens;
+                        sessionStats.estimatedCost += (event.usage.total_tokens / 1000000) * 0.50; 
+                    }
+                }, sessionStats);
+            } else {
+                // Standard Orchestration Mode
+                result = await core.orchestrate(query, (event) => {
+                    if (event.activeCount !== undefined) {
+                        sessionStats.activeAgents = event.activeCount;
+                    }
+                    if (event.type === 'agent_start') {
+                        sessionStats.lastModel = event.agent;
+                        s.message(chalk.white(`[${chalk.blue(event.agent)}] `) + chalk.dim(event.task));
+                    } else if (event.type === 'status') {
+                        s.message(chalk.yellow(event.message));
+                    } else if (event.type === 'usage' && event.usage) {
+                        sessionStats.totalTokens += event.usage.total_tokens;
+                        sessionStats.estimatedCost += (event.usage.total_tokens / 1000000) * 0.50; 
+                    }
+                }, sessionStats);
+            }
 
             sessionStats.totalTasks++;
             
@@ -179,13 +203,15 @@ async function interactiveSession() {
                 history.push({
                     timestamp: new Date().toISOString(),
                     prompt: query,
+                    mode: sessionStats.currentAgent ? 'DIRECT' : 'ORCHESTRATION',
+                    agent: sessionStats.currentAgent ? sessionStats.currentAgent.role : 'CEO',
                     result: result,
                     tokens: sessionStats.totalTokens
                 });
                 fs.writeFileSync(sessionsPath, JSON.stringify(history, null, 2));
             }
 
-            s.stop(chalk.green('Orchestration Complete'));
+            s.stop(chalk.green('Response Received'));
             
             const { columns } = termSize();
             console.log(boxen(result, {
@@ -193,8 +219,8 @@ async function interactiveSession() {
                 padding: 1,
                 margin: { left: Math.floor((columns - Math.min(columns - 10, 120)) / 2), top: 1, bottom: 1 },
                 borderStyle: 'double',
-                borderColor: 'blue',
-                title: chalk.bold.blue(' EXECUTIVE SUMMARY '),
+                borderColor: sessionStats.currentAgent ? 'magenta' : 'blue',
+                title: chalk.bold(sessionStats.currentAgent ? ` ${sessionStats.currentAgent.role.toUpperCase()} ` : ' EXECUTIVE SUMMARY '),
                 titleAlignment: 'center'
             }));
 
