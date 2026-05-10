@@ -64,6 +64,11 @@ class CommandRegistry {
                     log.success('Back to CEO Mode.');
                 }
             },
+            '/level': {
+                label: 'Smart Levels',
+                description: 'Toggle response depth [Instant|Thinking|Full]',
+                execute: () => this.toggleLevel()
+            },
             '/exit': {
                 label: 'Exit',
                 description: 'Terminate the Orca session',
@@ -223,6 +228,20 @@ class CommandRegistry {
         history.slice(-5).forEach((s, i) => {
             console.log(`  ${chalk.cyan(i+1)}: ${chalk.dim(s.timestamp)} - ${chalk.white(s.prompt.substring(0, 50))}...`);
         });
+    }
+
+    async toggleLevel() {
+        const action = await new enquirer.Select({
+            message: 'Select Intelligence Level:',
+            choices: [
+                { name: 'Instant', message: '⚡ Instant - Fast, single Gemma 4 call' },
+                { name: 'Thinking', message: '🧠 Thinking - Deep Reasoning (Gemma + Mistral + Kimi)' },
+                { name: 'Full', message: '🏢 Full - Massive 100-Agent Orchestration' }
+            ]
+        }).run();
+
+        this.sessionStats.level = action;
+        log.success(`Intelligence level updated to: ${chalk.bold(action)}`);
     }
 
     async showAnalytics() {

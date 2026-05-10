@@ -26,7 +26,8 @@ let sessionStats = {
     totalTokens: 0,
     sandbox: true,
     lastModel: 'N/A',
-    currentAgent: null // Track persistent agent mode
+    currentAgent: null, // Track persistent agent mode
+    level: 'Instant' // Default smart level
 };
 
 // Initialize Registry with reference to core for direct tasks
@@ -62,9 +63,10 @@ async function showHeader() {
 function renderStatusBar() {
     const { columns } = termSize();
     const sandboxStatus = sessionStats.sandbox ? chalk.green('● SANDBOX ON') : chalk.red('○ SANDBOX OFF');
+    const levelIcon = sessionStats.level === 'Instant' ? '⚡' : (sessionStats.level === 'Thinking' ? '🧠' : '🏢');
     const mode = sessionStats.currentAgent 
         ? chalk.bgBlue.white(` 🤖 DIRECT: ${sessionStats.currentAgent.role.toUpperCase()} `)
-        : chalk.bgCyan.black(' 🐋 MODE: CEO ORCHESTRATION ');
+        : chalk.bgCyan.black(` ${levelIcon} MODE: ${sessionStats.level.toUpperCase()} `);
 
     const stats = [
         chalk.cyan(`💰 $${sessionStats.estimatedCost.toFixed(5)}`),
@@ -167,7 +169,10 @@ async function interactiveSession() {
 
         // 2. Execution Logic
         const s = spinner();
-        s.start(chalk.blue(sessionStats.currentAgent ? `Consulting ${sessionStats.currentAgent.role}...` : 'CEO analyzing corporate resources...'));
+        const startMsg = sessionStats.currentAgent 
+            ? `Consulting ${sessionStats.currentAgent.role}...` 
+            : (sessionStats.level === 'Instant' ? 'Generating instant response...' : 'Orchestrating deep thoughts...');
+        s.start(chalk.blue(startMsg));
 
         try {
             let result;
@@ -180,7 +185,7 @@ async function interactiveSession() {
                     }
                 }, sessionStats);
             } else {
-                // Standard Orchestration Mode
+                // Standard Orchestration Mode (Respecting Smart Levels)
                 result = await core.orchestrate(query, (event) => {
                     if (event.activeCount !== undefined) {
                         sessionStats.activeAgents = event.activeCount;
@@ -205,7 +210,7 @@ async function interactiveSession() {
                 history.push({
                     timestamp: new Date().toISOString(),
                     prompt: query,
-                    mode: sessionStats.currentAgent ? 'DIRECT' : 'ORCHESTRATION',
+                    mode: sessionStats.currentAgent ? 'DIRECT' : sessionStats.level,
                     agent: sessionStats.currentAgent ? sessionStats.currentAgent.role : 'CEO',
                     result: result,
                     tokens: sessionStats.totalTokens

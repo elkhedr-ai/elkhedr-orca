@@ -116,9 +116,52 @@ async function runSingleAgent(agentId, prompt, onEvent = null, sessionStats = {}
 }
 
 async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
+    const level = sessionStats.level || 'Instant';
     const orchestrator = agentsData.orchestrator;
-    if (onEvent) onEvent({ type: 'status', message: `CEO Analyzing task: "${userPrompt}"...` });
-    else console.log(`[CEO] Analyzing task: "${userPrompt}"...`);
+
+    if (level === 'Instant') {
+        if (onEvent) onEvent({ type: 'status', message: `⚡ Instant Level: Consulting Gemma 4...` });
+        const result = await callOpenRouter("google/gemma-4-26b-a4b-it", [
+            { role: 'system', content: "You are the Instant Response module of Elkhedr Orca. Provide a fast, concise, and professional answer." },
+            { role: 'user', content: userPrompt }
+        ], "google/gemma-4-31b-it", sessionStats.sandbox, "Gemma 4 (Instant)");
+        
+        if (result && onEvent && result.usage) onEvent({ type: 'usage', usage: result.usage });
+        return result ? result.content : "Instant response failed.";
+    }
+
+    if (level === 'Thinking') {
+        if (onEvent) onEvent({ type: 'status', message: `🧠 Thinking Level: Consulting Gemma, Mistral, and Kimi...` });
+        
+        // Parallel Thinking
+        const models = [
+            { id: "google/gemma-4-31b-it", role: "Reasoning Expert (Gemma)" },
+            { id: "mistralai/mistral-small-2603", role: "Efficiency Specialist (Mistral)" },
+            { id: "~moonshotai/kimi-latest", role: "Intelligence Lead (Kimi)" }
+        ];
+
+        const thoughts = await Promise.all(models.map(m => {
+            if (onEvent) onEvent({ type: 'agent_start', agent: m.role, task: "Analyzing prompt deep context..." });
+            return callOpenRouter(m.id, [
+                { role: 'system', content: `Analyze the user prompt deeply and provide your expert perspective. Focus on thoroughness.` },
+                { role: 'user', content: userPrompt }
+            ], null, sessionStats.sandbox, m.role);
+        }));
+
+        if (onEvent) onEvent({ type: 'status', message: `CEO Synthesizing deep thoughts...` });
+
+        const validThoughts = thoughts.filter(t => t !== null);
+        const synthesis = await callOpenRouter(orchestrator.model, [
+            { role: 'system', content: orchestrator.prompt },
+            { role: 'user', content: `Synthesize the following expert thoughts into a master response for the user: ${JSON.stringify(validThoughts.map(t => t.content))}` }
+        ], orchestrator.fallbackModel, sessionStats.sandbox, "CEO Synthesizer");
+
+        if (synthesis && onEvent && synthesis.usage) onEvent({ type: 'usage', usage: synthesis.usage });
+        return synthesis ? synthesis.content : "Deep thinking synthesis failed.";
+    }
+
+    // Default: Fallback to existing Full Orchestration if level is not defined or 'Full'
+    if (onEvent) onEvent({ type: 'status', message: `🏢 Full Orchestration: CEO Analyzing task...` });
     
     const decompositionPrompt = `
     User Prompt: ${userPrompt}
