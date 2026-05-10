@@ -9,6 +9,8 @@ const enquirer = require('enquirer');
 const fs = require('fs');
 const path = require('path');
 
+const wrap = require('word-wrap');
+
 const termSize = () => {
     const ts = require('terminal-size');
     return (typeof ts === 'function' ? ts : ts.default)();
@@ -214,10 +216,19 @@ async function interactiveSession() {
             s.stop(chalk.green('Response Received'));
             
             const { columns } = termSize();
-            console.log(boxen(result, {
-                width: Math.min(columns - 10, 120),
+            const boxWidth = Math.min(columns - 10, 120);
+            
+            // Apply word wrap to the result to ensure it stays inside the box
+            const wrappedResult = wrap(result, {
+                width: boxWidth - 4, // Subtract padding
+                indent: '',
+                trim: true
+            });
+
+            console.log(boxen(wrappedResult, {
+                width: boxWidth,
                 padding: 1,
-                margin: { left: Math.floor((columns - Math.min(columns - 10, 120)) / 2), top: 1, bottom: 1 },
+                margin: { left: Math.floor((columns - boxWidth) / 2), top: 1, bottom: 1 },
                 borderStyle: 'double',
                 borderColor: sessionStats.currentAgent ? 'magenta' : 'blue',
                 title: chalk.bold(sessionStats.currentAgent ? ` ${sessionStats.currentAgent.role.toUpperCase()} ` : ' EXECUTIVE SUMMARY '),

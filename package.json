@@ -28,6 +28,7 @@
     "gradient-string": "^2.0.2",
     "ora": "^5.4.1",
     "terminal-size": "^4.0.1",
+    "word-wrap": "^1.2.5",
     "zod": "^4.4.3"
   }
 }
