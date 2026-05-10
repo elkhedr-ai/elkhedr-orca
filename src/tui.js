@@ -27,7 +27,7 @@ let sessionStats = {
     sandbox: true,
     lastModel: 'N/A',
     currentAgent: null, // Track persistent agent mode
-    level: 'Instant' // Default smart level
+    level: 'Auto' // Default smart level
 };
 
 // Initialize Registry with reference to core for direct tasks
@@ -63,10 +63,18 @@ async function showHeader() {
 function renderStatusBar() {
     const { columns } = termSize();
     const sandboxStatus = sessionStats.sandbox ? chalk.green('● SANDBOX ON') : chalk.red('○ SANDBOX OFF');
-    const levelIcon = sessionStats.level === 'Instant' ? '⚡' : (sessionStats.level === 'Thinking' ? '🧠' : '🏢');
+    
+    const levelIcons = {
+        'Auto': '🤖',
+        'Instant': '⚡',
+        'Thinking': '🧠',
+        'Swarm': '🐝'
+    };
+    const icon = levelIcons[sessionStats.level] || '🐋';
+
     const mode = sessionStats.currentAgent 
         ? chalk.bgBlue.white(` 🤖 DIRECT: ${sessionStats.currentAgent.role.toUpperCase()} `)
-        : chalk.bgCyan.black(` ${levelIcon} MODE: ${sessionStats.level.toUpperCase()} `);
+        : chalk.bgCyan.black(` ${icon} MODE: ${sessionStats.level.toUpperCase()} `);
 
     const stats = [
         chalk.cyan(`💰 $${sessionStats.estimatedCost.toFixed(5)}`),
@@ -171,7 +179,7 @@ async function interactiveSession() {
         const s = spinner();
         const startMsg = sessionStats.currentAgent 
             ? `Consulting ${sessionStats.currentAgent.role}...` 
-            : (sessionStats.level === 'Instant' ? 'Generating instant response...' : 'Orchestrating deep thoughts...');
+            : (sessionStats.level === 'Auto' ? 'Analyzing task for optimal routing...' : `Executing ${sessionStats.level} path...`);
         s.start(chalk.blue(startMsg));
 
         try {

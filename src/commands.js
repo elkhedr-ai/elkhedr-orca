@@ -234,9 +234,10 @@ class CommandRegistry {
         const action = await new enquirer.Select({
             message: 'Select Intelligence Level:',
             choices: [
+                { name: 'Auto', message: '🤖 Auto - Smart routing based on task complexity' },
                 { name: 'Instant', message: '⚡ Instant - Fast, single Gemma 4 call' },
                 { name: 'Thinking', message: '🧠 Thinking - Deep Reasoning (Gemma + Mistral + Kimi)' },
-                { name: 'Full', message: '🏢 Full - Massive 100-Agent Orchestration' }
+                { name: 'Swarm', message: '🐝 Swarm - Multi-agent collaboration for complex projects' }
             ]
         }).run();
 

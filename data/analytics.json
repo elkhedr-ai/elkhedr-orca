@@ -1,1 +1,32 @@
-{"totalOperations": 0, "totalCost": 0, "totalTokens": 0, "agentUsage": {}}
+{
+  "totalOperations": 5,
+  "totalCost": 0.0006644999999999999,
+  "totalTokens": 1329,
+  "agentUsage": {
+    "Gemma 4 (Instant)": {
+      "calls": 1,
+      "tokens": 107,
+      "cost": 0.0000535
+    },
+    "Efficiency Specialist (Mistral)": {
+      "calls": 1,
+      "tokens": 163,
+      "cost": 0.0000815
+    },
+    "Intelligence Lead (Kimi)": {
+      "calls": 1,
+      "tokens": 479,
+      "cost": 0.0002395
+    },
+    "Reasoning Expert (Gemma)": {
+      "calls": 1,
+      "tokens": 111,
+      "cost": 0.0000555
+    },
+    "CEO Synthesizer": {
+      "calls": 1,
+      "tokens": 469,
+      "cost": 0.0002345
+    }
+  }
+}

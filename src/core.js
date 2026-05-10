@@ -116,9 +116,31 @@ async function runSingleAgent(agentId, prompt, onEvent = null, sessionStats = {}
 }
 
 async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
-    const level = sessionStats.level || 'Instant';
+    let level = sessionStats.level || 'Auto';
     const orchestrator = agentsData.orchestrator;
 
+    // 1. Smart Router (Only if level is Auto)
+    if (level === 'Auto') {
+        if (onEvent) onEvent({ type: 'status', message: `🤖 Auto-Router: Selecting best intelligence level...` });
+        const routingPrompt = `
+        Analyze this user task and select the best processing level:
+        - "Instant": Short, simple questions or commands.
+        - "Thinking": Complex reasoning, creative writing, or deep analysis.
+        - "Swarm": Multi-step engineering, marketing, or business projects needing multiple specialized agents.
+        
+        Task: "${userPrompt}"
+        
+        Return ONLY the word: Instant, Thinking, or Swarm.
+        `;
+        const routeResult = await callOpenRouter("google/gemma-4-26b-a4b-it", [
+            { role: 'user', content: routingPrompt }
+        ], "google/gemma-4-31b-it", sessionStats.sandbox, "Smart Router");
+        
+        level = routeResult ? routeResult.content.trim().replace(/[^a-zA-Z]/g, '') : 'Instant';
+        if (onEvent) onEvent({ type: 'status', message: `🎯 Auto-selected Level: ${level}` });
+    }
+
+    // 2. Level Execution
     if (level === 'Instant') {
         if (onEvent) onEvent({ type: 'status', message: `⚡ Instant Level: Consulting Gemma 4...` });
         const result = await callOpenRouter("google/gemma-4-26b-a4b-it", [
@@ -133,7 +155,6 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
     if (level === 'Thinking') {
         if (onEvent) onEvent({ type: 'status', message: `🧠 Thinking Level: Consulting Gemma, Mistral, and Kimi...` });
         
-        // Parallel Thinking
         const models = [
             { id: "google/gemma-4-31b-it", role: "Reasoning Expert (Gemma)" },
             { id: "mistralai/mistral-small-2603", role: "Efficiency Specialist (Mistral)" },
@@ -160,78 +181,68 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
         return synthesis ? synthesis.content : "Deep thinking synthesis failed.";
     }
 
-    // Default: Fallback to existing Full Orchestration if level is not defined or 'Full'
-    if (onEvent) onEvent({ type: 'status', message: `🏢 Full Orchestration: CEO Analyzing task...` });
-    
-    const decompositionPrompt = `
-    User Prompt: ${userPrompt}
-    Available Agents: ${agentsData.agents.map(a => `${a.id}: ${a.role} (${a.department})`).join(', ')}
-    
-    Task: Break down the user prompt into subtasks and assign each subtask to the most relevant Agent ID.
-    Return the response in JSON format: [{"agentId": number, "subtask": "description"}]
-    `;
+    if (level === 'Swarm' || level === 'Full') {
+        if (onEvent) onEvent({ type: 'status', message: `🐝 Swarm Mode: CEO Mobilizing specialized agents...` });
+        
+        const decompositionPrompt = `
+        User Prompt: ${userPrompt}
+        Available Agents: ${agentsData.agents.map(a => `${a.id}: ${a.role} (${a.department})`).join(', ')}
+        
+        Task: Break down the user prompt into subtasks and assign each subtask to the most relevant Agent ID.
+        Return the response in JSON format: [{"agentId": number, "subtask": "description"}]
+        `;
 
-    const decompResult = await callOpenRouter(orchestrator.model, [
-        { role: 'system', content: orchestrator.prompt },
-        { role: 'user', content: decompositionPrompt }
-    ], orchestrator.fallbackModel, sessionStats.sandbox, "CEO Orchestrator");
+        const decompResult = await callOpenRouter(orchestrator.model, [
+            { role: 'system', content: orchestrator.prompt },
+            { role: 'user', content: decompositionPrompt }
+        ], orchestrator.fallbackModel, sessionStats.sandbox, "CEO Orchestrator");
 
-    if (!decompResult) {
-        const errorMsg = "Critical failure: CEO could not decompose the task even with fallbacks.";
-        if (onEvent) onEvent({ type: 'error', message: errorMsg });
-        return errorMsg;
-    }
+        if (!decompResult) return "Critical failure: Swarm could not initialize.";
 
-    const { content: decomposition, usage: decompUsage } = decompResult;
-    if (onEvent && decompUsage) onEvent({ type: 'usage', usage: decompUsage });
+        const { content: decomposition, usage: decompUsage } = decompResult;
+        if (onEvent && decompUsage) onEvent({ type: 'usage', usage: decompUsage });
 
-    let tasks;
-    try {
-        const jsonMatch = decomposition.match(/\[\s*\{.*\}\s*\]/s);
-        tasks = JSON.parse(jsonMatch ? jsonMatch[0] : decomposition);
-    } catch (e) {
-        if (onEvent) onEvent({ type: 'error', message: "Failed to parse decomposition JSON." });
-        return decomposition;
-    }
+        let tasks;
+        try {
+            const jsonMatch = decomposition.match(/\[\s*\{.*\}\s*\]/s);
+            tasks = JSON.parse(jsonMatch ? jsonMatch[0] : decomposition);
+        } catch (e) { return decomposition; }
 
-    if (!Array.isArray(tasks)) {
-        return "CEO returned a non-iterable response. Aborting.";
-    }
+        if (!Array.isArray(tasks)) return "Swarm returned invalid task structure.";
 
-    let activeCount = 0;
-    const results = [];
-    for (const task of tasks) {
-        const agent = agentsData.agents.find(a => a.id === task.agentId);
-        if (agent) {
-            activeCount++;
-            if (onEvent) onEvent({ type: 'agent_start', agent: agent.role, task: task.subtask, activeCount });
-            
-            const agentResult = await callOpenRouter(agent.model, [
-                { role: 'system', content: `You are the ${agent.role} in the ${agent.department} department.` },
-                { role: 'user', content: task.subtask }
-            ], agent.fallbackModel, sessionStats.sandbox, agent.role);
-            
-            activeCount--;
-            if (agentResult) {
-                const { content: resContent, usage: agentUsage } = agentResult;
-                if (onEvent && agentUsage) onEvent({ type: 'usage', usage: agentUsage });
-                results.push({ role: agent.role, output: resContent });
-            } else {
-                if (onEvent) onEvent({ type: 'error', message: `Agent ${agent.role} failed to respond after all fallbacks.`, activeCount });
+        let activeCount = 0;
+        const results = [];
+        for (const task of tasks) {
+            const agent = agentsData.agents.find(a => a.id === task.agentId);
+            if (agent) {
+                activeCount++;
+                if (onEvent) onEvent({ type: 'agent_start', agent: agent.role, task: task.subtask, activeCount });
+                
+                const agentResult = await callOpenRouter(agent.model, [
+                    { role: 'system', content: `You are the ${agent.role} in the ${agent.department} department.` },
+                    { role: 'user', content: task.subtask }
+                ], agent.fallbackModel, sessionStats.sandbox, agent.role);
+                
+                activeCount--;
+                if (agentResult) {
+                    const { content: resContent, usage: agentUsage } = agentResult;
+                    if (onEvent && agentUsage) onEvent({ type: 'usage', usage: agentUsage });
+                    results.push({ role: agent.role, output: resContent });
+                }
             }
         }
+
+        if (onEvent) onEvent({ type: 'status', message: `CEO Synthesizing final swarm report...` });
+        const finalResult = await callOpenRouter(orchestrator.model, [
+            { role: 'system', content: orchestrator.prompt },
+            { role: 'user', content: `Synthesize the following subtask results into a final response: ${JSON.stringify(results)}` }
+        ], orchestrator.fallbackModel, sessionStats.sandbox, "CEO Synthesizer");
+
+        if (finalResult && onEvent && finalResult.usage) onEvent({ type: 'usage', usage: finalResult.usage });
+        return (finalResult ? finalResult.content : null) || "Swarm synthesis failed.";
     }
 
-    if (onEvent) onEvent({ type: 'status', message: `CEO Synthesizing final report...` });
-
-    const finalResult = await callOpenRouter(orchestrator.model, [
-        { role: 'system', content: orchestrator.prompt },
-        { role: 'user', content: `Synthesize the following subtask results into a final response for the user: ${JSON.stringify(results)}` }
-    ], orchestrator.fallbackModel, sessionStats.sandbox, "CEO Synthesizer");
-
-    if (finalResult && onEvent && finalResult.usage) onEvent({ type: 'usage', usage: finalResult.usage });
-
-    return (finalResult ? finalResult.content : null) || "System synthesis failed. Please try again.";
+    return "Invalid processing level.";
 }
 
 if (require.main === module) {
