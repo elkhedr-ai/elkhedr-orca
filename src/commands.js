@@ -9,11 +9,12 @@ const enquirer = require('enquirer');
 const agentsDataPath = path.join(__dirname, 'agents.json');
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
 const skillsPath = path.join(__dirname, '../skills/registry.json');
+const analyticsPath = path.join(__dirname, '../data/analytics.json');
 
 class CommandRegistry {
     constructor(sessionStats, orchestratorRef) {
         this.sessionStats = sessionStats;
-        this.orchestratorRef = orchestratorRef; // Reference to core functions
+        this.orchestratorRef = orchestratorRef; 
         this.commands = {
             '/sandbox': {
                 label: 'Toggle Sandbox',
@@ -41,9 +42,9 @@ class CommandRegistry {
                 execute: () => this.manageSkills()
             },
             '/stats': {
-                label: 'Session Stats',
-                description: 'Show real-time session usage and costs',
-                execute: () => this.showStats()
+                label: 'Analytics Dashboard',
+                description: 'Show granular usage, costs, and agent performance',
+                execute: () => this.showAnalytics()
             },
             '/providers': {
                 label: 'Provider Status',
@@ -159,7 +160,6 @@ class CommandRegistry {
             fs.writeFileSync(agentsDataPath, JSON.stringify(agentsData, null, 2));
             log.success(`Successfully updated ${agent.role} model.`);
         } else if (action === 'task') {
-            // Set this agent as the persistent session agent
             this.sessionStats.currentAgent = agent;
             log.success(chalk.bold.green(`\n🚀 SESSION MODE: DIRECT AGENT\n`) + `You are now talking directly to the ${chalk.blue(agent.role)}.\nType ${chalk.yellow('/reset')} to return to CEO mode.`);
         }
@@ -225,14 +225,49 @@ class CommandRegistry {
         });
     }
 
-    showStats() {
-        const stats = boxen(
-            `${chalk.cyan('Token Usage:')} ${this.sessionStats.totalTokens || 0}\n` +
-            `${chalk.cyan('Est. Cost:')} $${this.sessionStats.estimatedCost.toFixed(6)}\n` +
-            `${chalk.cyan('Tasks:')} ${this.sessionStats.totalTasks}`,
-            { padding: 1, borderColor: 'magenta', title: ' SESSION STATS ' }
+    async showAnalytics() {
+        if (!fs.existsSync(analyticsPath)) {
+            log.info('No analytics data available yet.');
+            return;
+        }
+        const data = JSON.parse(fs.readFileSync(analyticsPath, 'utf8'));
+        
+        const summary = boxen(
+            `${chalk.bold.white('CORPORATE OVERVIEW')}\n` +
+            `${chalk.cyan('Total Operations:')} ${data.totalOperations}\n` +
+            `${chalk.cyan('Total Tokens:')} ${data.totalTokens.toLocaleString()}\n` +
+            `${chalk.green('Total API Cost:')} $${data.totalCost.toFixed(4)}`,
+            { padding: 1, borderColor: 'green', title: ' ELKHEDR ORCA ANALYTICS ', titleAlignment: 'center' }
         );
-        console.log('\n' + stats);
+        console.log('\n' + summary);
+
+        const action = await new enquirer.Select({
+            message: 'Drill down into metrics:',
+            choices: ['Agent Usage Breakdown', 'Cost Projection', 'Reset Analytics', 'Back']
+        }).run();
+
+        if (action === 'Agent Usage Breakdown') {
+            const agentTable = new Table({
+                head: [chalk.cyan('Agent Role'), chalk.cyan('Calls'), chalk.cyan('Tokens'), chalk.cyan('Cost')],
+                colWidths: [30, 10, 15, 15]
+            });
+
+            Object.entries(data.agentUsage)
+                .sort((a, b) => b[1].cost - a[1].cost)
+                .slice(0, 15)
+                .forEach(([role, stats]) => {
+                    agentTable.push([role, stats.calls, stats.tokens.toLocaleString(), `$${stats.cost.toFixed(4)}`]);
+                });
+
+            console.log('\n' + chalk.bold.blue('Top 15 Most Active Agents (By Cost):'));
+            console.log(agentTable.toString());
+        } else if (action === 'Reset Analytics') {
+            const confirm = await new enquirer.Confirm({ message: 'Are you sure you want to wipe all corporate history?' }).run();
+            if (confirm) {
+                fs.writeFileSync(analyticsPath, JSON.stringify({ totalOperations: 0, totalCost: 0, totalTokens: 0, agentUsage: {} }));
+                log.success('Analytics database reset.');
+            }
+        }
     }
 
     checkProviders() {

@@ -10,7 +10,32 @@ const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'
 // Universal fallback to a highly available free model if primary and secondary fail
 const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it";
 
-async function callOpenRouter(model, messages, fallbackModel = null, sandbox = false) {
+const analyticsPath = path.join(__dirname, '../data/analytics.json');
+
+function updateAnalytics(agentRole, tokens, cost) {
+    try {
+        if (!fs.existsSync(analyticsPath)) {
+            fs.writeFileSync(analyticsPath, JSON.stringify({ totalOperations: 0, totalCost: 0, totalTokens: 0, agentUsage: {} }));
+        }
+        const data = JSON.parse(fs.readFileSync(analyticsPath, 'utf8'));
+        data.totalOperations += 1;
+        data.totalCost += cost;
+        data.totalTokens += tokens;
+        
+        if (!data.agentUsage[agentRole]) {
+            data.agentUsage[agentRole] = { calls: 0, tokens: 0, cost: 0 };
+        }
+        data.agentUsage[agentRole].calls += 1;
+        data.agentUsage[agentRole].tokens += tokens;
+        data.agentUsage[agentRole].cost += cost;
+        
+        fs.writeFileSync(analyticsPath, JSON.stringify(data, null, 2));
+    } catch (e) {
+        console.error("Failed to update global analytics:", e.message);
+    }
+}
+
+async function callOpenRouter(model, messages, fallbackModel = null, sandbox = false, agentRole = "Orchestrator") {
     if (!OPENROUTER_API_KEY) {
         throw new Error("OPENROUTER_API_KEY is missing. Please check your .env file or environment variables.");
     }
@@ -35,10 +60,13 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
             });
             
             if (response.data && response.data.choices && response.data.choices[0]) {
-                // Return both content and usage for tracking
+                const usage = response.data.usage || { total_tokens: 0 };
+                const cost = (usage.total_tokens / 1000000) * 0.50; // Dynamic estimation
+                updateAnalytics(agentRole, usage.total_tokens, cost);
+
                 return {
                     content: response.data.choices[0].message.content,
-                    usage: response.data.usage
+                    usage: usage
                 };
             }
             return null;
@@ -78,7 +106,7 @@ async function runSingleAgent(agentId, prompt, onEvent = null, sessionStats = {}
     const result = await callOpenRouter(agent.model, [
         { role: 'system', content: `You are the ${agent.role} in the ${agent.department} department.` },
         { role: 'user', content: prompt }
-    ], agent.fallbackModel, sessionStats.sandbox);
+    ], agent.fallbackModel, sessionStats.sandbox, agent.role);
 
     if (result && onEvent && result.usage) {
         onEvent({ type: 'usage', usage: result.usage });
@@ -103,7 +131,7 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
     const decompResult = await callOpenRouter(orchestrator.model, [
         { role: 'system', content: orchestrator.prompt },
         { role: 'user', content: decompositionPrompt }
-    ], orchestrator.fallbackModel, sessionStats.sandbox);
+    ], orchestrator.fallbackModel, sessionStats.sandbox, "CEO Orchestrator");
 
     if (!decompResult) {
         const errorMsg = "Critical failure: CEO could not decompose the task even with fallbacks.";
@@ -138,7 +166,7 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
             const agentResult = await callOpenRouter(agent.model, [
                 { role: 'system', content: `You are the ${agent.role} in the ${agent.department} department.` },
                 { role: 'user', content: task.subtask }
-            ], agent.fallbackModel, sessionStats.sandbox);
+            ], agent.fallbackModel, sessionStats.sandbox, agent.role);
             
             activeCount--;
             if (agentResult) {
@@ -156,7 +184,7 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
     const finalResult = await callOpenRouter(orchestrator.model, [
         { role: 'system', content: orchestrator.prompt },
         { role: 'user', content: `Synthesize the following subtask results into a final response for the user: ${JSON.stringify(results)}` }
-    ], orchestrator.fallbackModel, sessionStats.sandbox);
+    ], orchestrator.fallbackModel, sessionStats.sandbox, "CEO Synthesizer");
 
     if (finalResult && onEvent && finalResult.usage) onEvent({ type: 'usage', usage: finalResult.usage });
 
