@@ -1,19 +1,53 @@
 # Elkhedr Studio Integration
 
-This standalone application is also integrated as a **Git Submodule** within [Elkhedr Studio](https://github.com/ekagent/elkhedr-studio) under the **Enterprise Section**.
+Elkhedr Orca remains a standalone application. Elkhedr Studio integrates it through
+the Enterprise Orca bridge, which detects a local Orca checkout and registers Orca as
+an MCP server. Studio should not import Orca runtime code into the Tauri/React bundle.
 
-## How the Integration Works
-- **Deduplication:** The code exists in its own repository and is linked inside Studio. This prevents duplication and ensures a "single source of truth."
-- **Enterprise Section:** Inside Elkhedr Studio, the Enterprise features leverage Orca's 100-agent swarm for high-level corporate tasks.
+## Branch Contract
+- Orca standalone branch: `main`
+- Orca Studio bridge branch: `studio-enterprise-bridge`
+- Studio integration branch: `studio-orca-enterprise-bridge`
 
-## Managing Updates
-To keep both apps synced across devices:
-1. **Pushing Changes:** If you modify Orca inside Studio, commit and push from the `src/enterprise/elkhedr-orca` directory to update the standalone repo.
-2. **Pulling Changes:** In the Studio root, run `./update-orca.sh` to pull the latest standalone Orca improvements.
+Use `studio-enterprise-bridge` for integration metadata and installer/MCP contract work.
+Merge changes into `main` only when they improve the standalone Orca product.
 
-## Setup on New Devices
-When cloning Elkhedr Studio on a new machine, use:
+## New Device Setup
+From an Elkhedr workspace checkout:
+
 ```bash
-git clone --recurse-submodules https://github.com/ekagent/elkhedr-studio.git
+ORCA_BRANCH=studio-enterprise-bridge ./scripts/bootstrap-orca.sh
 ```
-This will automatically download the correct version of Orca.
+
+Or install Orca directly:
+
+```bash
+ORCA_BRANCH=studio-enterprise-bridge bash install.sh
+```
+
+## Studio Contract
+- Status: `GET /api/enterprise/orca/status`
+- Register MCP: `POST /api/enterprise/orca/register-mcp`
+- Open folder: `POST /api/enterprise/orca/open`
+
+The MCP endpoint can use the globally linked command:
+
+```json
+{
+  "mcpServers": {
+    "elkhedr-orca": {
+      "command": "mcp-orca",
+      "env": {
+        "OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+For pinned source snapshots inside Studio, use a Git submodule rather than copying files:
+
+```bash
+git submodule add -b studio-enterprise-bridge https://github.com/ekagent/elkhedr-orca.git elkhedr-studio/src/enterprise/elkhedr-orca
+git submodule update --init --recursive
+```

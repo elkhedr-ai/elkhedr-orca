@@ -1,47 +1,67 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Elkhedr Orca Installer
-# Usage: curl -sSL https://raw.githubusercontent.com/ekagent/elkhedr-orca/main/install.sh | bash
+# Elkhedr Orca standalone installer.
+# Usage:
+#   curl -sSL https://raw.githubusercontent.com/ekagent/elkhedr-orca/main/install.sh | bash
+#   ORCA_BRANCH=studio-enterprise-bridge bash install.sh
 
-echo "🚀 Installing Elkhedr Orca..."
+ORCA_REPO="${ORCA_REPO:-https://github.com/ekagent/elkhedr-orca.git}"
+ORCA_BRANCH="${ORCA_BRANCH:-main}"
+INSTALL_DIR="${ORCA_HOME:-$HOME/elkhedr-orca}"
 
-# Create directory if it doesn't exist
-INSTALL_DIR="$HOME/elkhedr-orca"
-if [ ! -d "$INSTALL_DIR" ]; then
-    mkdir -p "$INSTALL_DIR"
-    # In a real scenario, we would git clone here
-    # git clone https://github.com/ekagent/elkhedr-orca.git "$INSTALL_DIR"
+echo "Installing Elkhedr Orca from $ORCA_REPO#$ORCA_BRANCH"
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "git is required." >&2
+  exit 1
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm is required." >&2
+  exit 1
+fi
+
+if [[ -d "$INSTALL_DIR/.git" ]]; then
+  git -C "$INSTALL_DIR" fetch origin "$ORCA_BRANCH"
+  git -C "$INSTALL_DIR" switch "$ORCA_BRANCH" 2>/dev/null || git -C "$INSTALL_DIR" switch -c "$ORCA_BRANCH" "origin/$ORCA_BRANCH"
+  git -C "$INSTALL_DIR" pull --ff-only origin "$ORCA_BRANCH"
+else
+  mkdir -p "$(dirname "$INSTALL_DIR")"
+  git clone --branch "$ORCA_BRANCH" "$ORCA_REPO" "$INSTALL_DIR"
 fi
 
 cd "$INSTALL_DIR"
 
-# Install dependencies
-npm install --silent
-
-# Link globally
-npm link
-
-# Setup API Key
-if [ -z "$OPENROUTER_API_KEY" ]; then
-    echo "⚠️  OPENROUTER_API_KEY not found in environment."
-    read -p "Enter your OpenRouter API Key: " api_key
-    echo "OPENROUTER_API_KEY=$api_key" >> .env
-    echo "✅ API Key saved to .env"
+if [[ -f package-lock.json ]]; then
+  npm ci
+else
+  npm install
 fi
 
-echo "✅ Elkhedr Orca installed successfully!"
-echo "Try running: orca 'Build a full-stack SaaS app and draft a marketing plan'"
+npm link
 
-echo ""
-echo "🤖 To use with Claude Code / Claude Desktop:"
-echo "Add the following to your Claude config:"
-echo "{"
-echo "  \"mcpServers\": {"
-echo "    \"elkhedr-orca\": {"
-echo "      \"command\": \"mcp-orca\","
-echo "      \"env\": {"
-echo "        \"OPENROUTER_API_KEY\": \"$OPENROUTER_API_KEY\""
-echo "      }"
-echo "    }"
-echo "  }"
-echo "}"
+if [[ -n "${OPENROUTER_API_KEY:-}" && ! -f .env ]]; then
+  printf 'OPENROUTER_API_KEY=%s\n' "$OPENROUTER_API_KEY" > .env
+  chmod 600 .env
+fi
+
+cat <<EOF
+
+Elkhedr Orca installed successfully.
+
+Try:
+  orca "Build a full-stack SaaS app and draft a marketing plan"
+
+MCP config:
+{
+  "mcpServers": {
+    "elkhedr-orca": {
+      "command": "mcp-orca",
+      "env": {
+        "OPENROUTER_API_KEY": "\${OPENROUTER_API_KEY}"
+      }
+    }
+  }
+}
+EOF
