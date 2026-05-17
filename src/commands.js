@@ -14,6 +14,7 @@ const { TaskQueue } = require('./queue/index.js');
 const { compileWorkflowDefinition, loadFromFile, listDefinitions } = require('./workflows/dsl.js');
 const { registerBuiltInHandlers } = require('./workflows/handlers.js');
 const { validateCompiledWorkflow, getWorkflowSummary } = require('./workflows/validator.js');
+const { EventBus, getEventBus } = require('./events/bus.js');
 
 const agentsDataPath = path.join(__dirname, 'agents.json');
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
@@ -157,6 +158,21 @@ class CommandRegistry {
                 label: 'Run Workflow Definition',
                 description: 'Load and execute a workflow from JSON file',
                 execute: (args) => this.runWorkflowDefinition(args)
+            },
+            '/events': {
+                label: 'Event Bus Status',
+                description: 'Show event bus statistics and recent events',
+                execute: () => this.showEventBusStatus()
+            },
+            '/event-publish': {
+                label: 'Publish Event',
+                description: 'Publish a test event to the bus',
+                execute: (args) => this.publishEvent(args)
+            },
+            '/event-query': {
+                label: 'Query Events',
+                description: 'Query events by type from the store',
+                execute: (args) => this.queryEvents(args)
             },
             '/exit': {
                 label: 'Exit',
@@ -914,6 +930,81 @@ class CommandRegistry {
             s.stop('Failed');
             log.error(error.message);
         }
+    }
+
+    async showEventBusStatus() {
+        const bus = getEventBus({ persistenceEnabled: false });
+        const stats = bus.getStats();
+        
+        console.log(boxen(
+            `${chalk.bold.white('EVENT BUS STATUS')}\n\n` +
+            `${chalk.cyan('Bus Name:')} ${stats.name}\n` +
+            `${chalk.cyan('Total Published:')} ${stats.totalPublished}\n` +
+            `${chalk.cyan('Total Subscribers:')} ${stats.totalSubscribers}\n` +
+            `${chalk.cyan('Active Listeners:')} ${stats.activeListeners}\n` +
+            `${chalk.cyan('Store Count:')} ${stats.storeCount}`,
+            { padding: 1, borderColor: 'magenta', title: ' EVENTS ', titleAlignment: 'center' }
+        ));
+        
+        if (Object.keys(stats.eventsByType).length > 0) {
+            console.log('\n' + chalk.bold('Events Published:'));
+            const table = new Table({
+                head: [chalk.cyan('Event Type'), chalk.cyan('Count')],
+                colWidths: [30, 10]
+            });
+            for (const [type, count] of Object.entries(stats.eventsByType)) {
+                table.push([type, count]);
+            }
+            console.log(table.toString());
+        }
+    }
+
+    async publishEvent(args) {
+        const type = args[0];
+        const data = args.slice(1).join(' ') || '{}';
+        
+        if (!type) {
+            log.error('Usage: /event-publish <type> [json-data]');
+            return;
+        }
+        
+        try {
+            const parsedData = JSON.parse(data);
+            const bus = getEventBus({ persistenceEnabled: false });
+            bus.publish(type, parsedData, { source: 'cli' });
+            log.success(`Published event "${type}".`);
+        } catch (error) {
+            log.error(`Invalid JSON data: ${error.message}`);
+        }
+    }
+
+    async queryEvents(args) {
+        const type = args[0];
+        
+        const bus = getEventBus({ persistenceEnabled: false });
+        const events = bus.query({ type });
+        
+        if (events.length === 0) {
+            log.info('No events found.');
+            return;
+        }
+        
+        console.log(`\n${chalk.bold('Events:')}`);
+        const table = new Table({
+            head: [chalk.cyan('Type'), chalk.cyan('Source'), chalk.cyan('Timestamp')],
+            colWidths: [25, 20, 25]
+        });
+        
+        for (const event of events.slice(-10)) {
+            table.push([
+                event.type,
+                event.source || 'unknown',
+                new Date(event.timestamp).toLocaleString()
+            ]);
+        }
+        
+        console.log(table.toString());
+        log.info(`Showing last ${Math.min(events.length, 10)} of ${events.length} events.`);
     }
 }
 
