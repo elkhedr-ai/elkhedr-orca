@@ -5,6 +5,7 @@ const boxen = require('boxen');
 const gradient = require('gradient-string');
 const core = require('./core.js');
 const { CommandRegistry } = require('./commands.js');
+const { logger } = require('./utils/logger.js');
 const enquirer = require('enquirer');
 const fs = require('fs');
 const path = require('path');
@@ -17,6 +18,7 @@ const termSize = () => {
 };
 
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
+const historyCachePath = path.join(__dirname, '../sessions/input-history.json');
 
 // Session State
 let sessionStats = {
@@ -26,11 +28,37 @@ let sessionStats = {
     totalTokens: 0,
     sandbox: true,
     lastModel: 'N/A',
-    currentAgent: null, // Track persistent agent mode
-    level: 'Auto' // Default smart level
+    currentAgent: null,
+    level: 'Auto'
 };
 
-// Initialize Registry with reference to core for direct tasks
+// Input history for up/down arrow support
+let inputHistory = [];
+let historyIndex = -1;
+
+// Load input history
+function loadInputHistory() {
+    try {
+        if (fs.existsSync(historyCachePath)) {
+            inputHistory = JSON.parse(fs.readFileSync(historyCachePath, 'utf8'));
+        }
+    } catch (e) {
+        logger.warn('Failed to load input history');
+    }
+}
+
+// Save input history
+function saveInputHistory() {
+    try {
+        // Keep last 100 entries
+        const trimmed = inputHistory.slice(-100);
+        fs.writeFileSync(historyCachePath, JSON.stringify(trimmed, null, 2));
+    } catch (e) {
+        logger.warn('Failed to save input history');
+    }
+}
+
+// Initialize Registry
 const commandRegistry = new CommandRegistry(sessionStats, core);
 
 function centerText(text) {
@@ -57,6 +85,7 @@ async function showHeader() {
     console.clear();
     console.log('\n' + centerText(gradient(['#00c6ff', '#0072ff'])(splash)));
     console.log(centerText(chalk.blue.bold('Corporate Ecosystem Orchestrator | 100 Specialized Agents')));
+    console.log(centerText(chalk.dim('v1.0.0 | Type /help for commands | Ctrl+C to exit')));
     console.log('\n');
 }
 
@@ -94,23 +123,21 @@ function renderStatusBar() {
     }));
 }
 
-// Custom Safe Autocomplete class to prevent regex crash and handle conditional visibility
+// Custom Safe Autocomplete class
 class OrcaPrompt extends enquirer.AutoComplete {
     constructor(options) {
         super(options);
+        this.historyIndex = -1;
+        this.originalInput = '';
     }
     
-    // Override submit to allow free text even if no choice is matched
     async submit() {
         if (this.state.index === -1 || !this.input.startsWith('/')) {
             this.state.submitted = true;
             this.state.validating = true;
-            
-            // This is the key: if not a command, treat input as the literal value
             await this.validate(this.input, this.state);
             await this.render();
             await this.close();
-            
             this.emit('submit', this.input);
             return;
         }
@@ -134,16 +161,49 @@ class OrcaPrompt extends enquirer.AutoComplete {
             return str;
         }
     }
+
+    // Handle up/down for history navigation
+    async up() {
+        if (!this.input.startsWith('/') && inputHistory.length > 0) {
+            if (this.historyIndex === -1) {
+                this.originalInput = this.input;
+            }
+            this.historyIndex = Math.min(this.historyIndex + 1, inputHistory.length - 1);
+            this.input = inputHistory[inputHistory.length - 1 - this.historyIndex] || '';
+            this.cursor = this.input.length;
+            await this.render();
+            return;
+        }
+        return super.up();
+    }
+
+    async down() {
+        if (!this.input.startsWith('/') && inputHistory.length > 0) {
+            this.historyIndex = Math.max(this.historyIndex - 1, -1);
+            if (this.historyIndex === -1) {
+                this.input = this.originalInput;
+            } else {
+                this.input = inputHistory[inputHistory.length - 1 - this.historyIndex] || '';
+            }
+            this.cursor = this.input.length;
+            await this.render();
+            return;
+        }
+        return super.down();
+    }
 }
 
 async function interactiveSession() {
+    loadInputHistory();
     await showHeader();
     
     while (true) {
         renderStatusBar();
         
         const choices = commandRegistry.getCommandList();
-        const promptLabel = sessionStats.currentAgent ? chalk.blue.bold(`🤖 ${sessionStats.currentAgent.role.split(' ')[0].toUpperCase()}`) : chalk.cyan.bold('🐋 ORCA');
+        const promptLabel = sessionStats.currentAgent ? 
+            chalk.blue.bold(`🤖 ${sessionStats.currentAgent.role.split(' ')[0].toUpperCase()}`) : 
+            chalk.cyan.bold('🐋 ORCA');
 
         const prompt = new OrcaPrompt({
             name: 'query',
@@ -156,7 +216,9 @@ async function interactiveSession() {
                 }
                 return [];
             },
-            footer: () => this.input && this.input.startsWith('/') ? chalk.dim(' (Search commands...)') : chalk.dim(' (Type / for commands)')
+            footer: () => this.input && this.input.startsWith('/') ? 
+                chalk.dim(' (Search commands...)') : 
+                chalk.dim(' (Type / for commands, ↑↓ for history)')
         });
 
         let query;
@@ -168,19 +230,27 @@ async function interactiveSession() {
         }
 
         if (!query) continue;
+        
+        // Add to history (avoid duplicates at the end)
+        if (inputHistory.length === 0 || inputHistory[inputHistory.length - 1] !== query) {
+            inputHistory.push(query);
+            saveInputHistory();
+        }
 
-        // 1. Check if it's a command
+        // Check if it's a command
         if (query.startsWith('/')) {
             const isHandled = await commandRegistry.execute(query);
             if (isHandled) continue;
         }
 
-        // 2. Execution Logic
+        // Execution Logic
         const s = spinner();
         const startMsg = sessionStats.currentAgent 
             ? `Consulting ${sessionStats.currentAgent.role}...` 
             : (sessionStats.level === 'Auto' ? 'Analyzing task for optimal routing...' : `Executing ${sessionStats.level} path...`);
         s.start(chalk.blue(startMsg));
+        
+        logger.info({ query: query.substring(0, 100), mode: sessionStats.currentAgent ? 'DIRECT' : sessionStats.level }, 'Processing query');
 
         try {
             let result;
@@ -193,7 +263,7 @@ async function interactiveSession() {
                     }
                 }, sessionStats);
             } else {
-                // Standard Orchestration Mode (Respecting Smart Levels)
+                // Standard Orchestration Mode
                 result = await core.orchestrate(query, (event) => {
                     if (event.activeCount !== undefined) {
                         sessionStats.activeAgents = event.activeCount;
@@ -212,9 +282,12 @@ async function interactiveSession() {
 
             sessionStats.totalTasks++;
             
-            // Real session saving
-            if (fs.existsSync(sessionsPath)) {
-                const history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+            // Session saving
+            try {
+                let history = [];
+                if (fs.existsSync(sessionsPath)) {
+                    history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+                }
                 history.push({
                     timestamp: new Date().toISOString(),
                     prompt: query,
@@ -224,16 +297,17 @@ async function interactiveSession() {
                     tokens: sessionStats.totalTokens
                 });
                 fs.writeFileSync(sessionsPath, JSON.stringify(history, null, 2));
+            } catch (e) {
+                logger.warn('Failed to save session');
             }
 
-            s.stop(chalk.green('Response Received'));
+            s.stop(chalk.green('✓ Response Received'));
             
             const { columns } = termSize();
             const boxWidth = Math.min(columns - 10, 120);
             
-            // Apply word wrap to the result to ensure it stays inside the box
             const wrappedResult = wrap(result, {
-                width: boxWidth - 4, // Subtract padding
+                width: boxWidth - 4,
                 indent: '',
                 trim: true
             });
@@ -249,14 +323,33 @@ async function interactiveSession() {
             }));
 
         } catch (error) {
-            s.stop(chalk.red('Orchestration Interrupted'));
-            log.error(error.message);
+            s.stop(chalk.red('✗ Orchestration Failed'));
+            
+            logger.error({ error: error.message, stack: error.stack }, 'Orchestration error');
+            
+            const errorBox = boxen(
+                `${chalk.red.bold('Error:')} ${error.message}\n\n` +
+                `${chalk.dim('Code:')} ${error.code || 'UNKNOWN'}\n` +
+                `${chalk.dim('Trace ID:')} ${error.traceId || 'N/A'}`,
+
+                {
+                    padding: 1,
+                    borderColor: 'red',
+                    title: ' ERROR ',
+                    titleAlignment: 'center'
+                }
+            );
+            console.log(errorBox);
         }
     }
 }
 
 if (require.main === module) {
-    interactiveSession().catch(console.error);
+    interactiveSession().catch((error) => {
+        logger.fatal({ error: error.message, stack: error.stack }, 'Fatal TUI error');
+        console.error(error);
+        process.exit(1);
+    });
 }
 
 module.exports = { interactiveSession };
