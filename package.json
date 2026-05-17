@@ -38,6 +38,7 @@
     "@clack/prompts": "^1.3.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "axios": "^1.16.0",
+    "better-sqlite3": "^12.10.0",
     "boxen": "^5.1.2",
     "chalk": "^4.1.2",
     "cheerio": "^1.2.0",
@@ -57,5 +58,9 @@
     "word-wrap": "^1.2.5",
     "ws": "^8.20.1",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "db-migrate": "^0.11.14",
+    "db-migrate-sqlite3": "^1.0.2"
   }
 }

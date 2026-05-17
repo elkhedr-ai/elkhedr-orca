@@ -339,16 +339,30 @@ class CommandRegistry {
     }
 
     listSessions() {
-        if (!fs.existsSync(sessionsPath)) return;
-        const history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
-        if (history.length === 0) {
-            log.info('No session history found.');
-            return;
+        try {
+            const history = db.getSessionsData(5);
+            if (history.length === 0) {
+                log.info('No session history found.');
+                return;
+            }
+            log.info(chalk.bold('Recent Sessions:'));
+            history.forEach((s, i) => {
+                console.log(`  ${chalk.cyan(i+1)}: ${chalk.dim(s.timestamp)} - ${chalk.white(s.prompt.substring(0, 50))}...`);
+            });
+        } catch (e) {
+            logger.warn('Failed to load session history from database');
+            // Fallback to file-based approach
+            if (!fs.existsSync(sessionsPath)) return;
+            const history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+            if (history.length === 0) {
+                log.info('No session history found.');
+                return;
+            }
+            log.info(chalk.bold('Recent Sessions:'));
+            history.slice(-5).forEach((s, i) => {
+                console.log(`  ${chalk.cyan(i+1)}: ${chalk.dim(s.timestamp)} - ${chalk.white(s.prompt.substring(0, 50))}...`);
+            });
         }
-        log.info(chalk.bold('Recent Sessions:'));
-        history.slice(-5).forEach((s, i) => {
-            console.log(`  ${chalk.cyan(i+1)}: ${chalk.dim(s.timestamp)} - ${chalk.white(s.prompt.substring(0, 50))}...`);
-        });
     }
 
     async toggleLevel() {
@@ -367,46 +381,93 @@ class CommandRegistry {
     }
 
     async showAnalytics() {
-        if (!fs.existsSync(analyticsPath)) {
-            log.info('No analytics data available yet.');
-            return;
-        }
-        const data = JSON.parse(fs.readFileSync(analyticsPath, 'utf8'));
-        
-        const summary = boxen(
-            `${chalk.bold.white('CORPORATE OVERVIEW')}\n` +
-            `${chalk.cyan('Total Operations:')} ${data.totalOperations}\n` +
-            `${chalk.cyan('Total Tokens:')} ${data.totalTokens.toLocaleString()}\n` +
-            `${chalk.green('Total API Cost:')} $${data.totalCost.toFixed(4)}`,
-            { padding: 1, borderColor: 'green', title: ' ELKHEDR ORCA ANALYTICS ', titleAlignment: 'center' }
-        );
-        console.log('\n' + summary);
-
-        const action = await new enquirer.Select({
-            message: 'Drill down into metrics:',
-            choices: ['Agent Usage Breakdown', 'Cost Projection', 'Reset Analytics', 'Back']
-        }).run();
-
-        if (action === 'Agent Usage Breakdown') {
-            const agentTable = new Table({
-                head: [chalk.cyan('Agent Role'), chalk.cyan('Calls'), chalk.cyan('Tokens'), chalk.cyan('Cost')],
-                colWidths: [30, 10, 15, 15]
-            });
-
-            Object.entries(data.agentUsage)
-                .sort((a, b) => b[1].cost - a[1].cost)
-                .slice(0, 15)
-                .forEach(([role, stats]) => {
-                    agentTable.push([role, stats.calls, stats.tokens.toLocaleString(), `$${stats.cost.toFixed(4)}`]);
+        try {
+            const analyticsData = db.getAnalyticsData();
+            const agentUsage = db.getAgentUsageData();
+            
+            const summary = boxen(
+                `${chalk.bold.white('CORPORATE OVERVIEW')}\n` +
+                `${chalk.cyan('Total Operations:')} ${analyticsData.totalOperations}\n` +
+                `${chalk.cyan('Total Tokens:')} ${analyticsData.totalTokens.toLocaleString()}\n` +
+                `${chalk.green('Total API Cost:')} $${analyticsData.totalCost.toFixed(4)}`,
+                { padding: 1, borderColor: 'green', title: ' ELKHEDR ORCA ANALYTICS ', titleAlignment: 'center' }
+            );
+            console.log('\n' + summary);
+            
+            const action = await new enquirer.Select({
+                message: 'Drill down into metrics:',
+                choices: ['Agent Usage Breakdown', 'Cost Projection', 'Reset Analytics', 'Back']
+            }).run();
+            
+            if (action === 'Agent Usage Breakdown') {
+                const agentTable = new Table({
+                    head: [chalk.cyan('Agent Role'), chalk.cyan('Calls'), chalk.cyan('Tokens'), chalk.cyan('Cost')],
+                    colWidths: [30, 10, 15, 15]
                 });
-
-            console.log('\n' + chalk.bold.blue('Top 15 Most Active Agents (By Cost):'));
-            console.log(agentTable.toString());
-        } else if (action === 'Reset Analytics') {
-            const confirm = await new enquirer.Confirm({ message: 'Are you sure you want to wipe all corporate history?' }).run();
-            if (confirm) {
-                fs.writeFileSync(analyticsPath, JSON.stringify({ totalOperations: 0, totalCost: 0, totalTokens: 0, agentUsage: {} }));
-                log.success('Analytics database reset.');
+                
+                Object.entries(agentUsage)
+                    .sort((a, b) => b[1].cost - a[1].cost)
+                    .slice(0, 15)
+                    .forEach(([role, stats]) => {
+                        agentTable.push([role, stats.calls, stats.tokens.toLocaleString(), `$${stats.cost.toFixed(4)}`]);
+                    });
+                
+                console.log('\n' + chalk.bold.blue('Top 15 Most Active Agents (By Cost):'));
+                console.log(agentTable.toString());
+            } else if (action === 'Reset Analytics') {
+                const confirm = await new enquirer.Confirm({ message: 'Are you sure you want to wipe all corporate history?' }).run();
+                if (confirm) {
+                    // Reset analytics in database
+                    // Clear tasks and costs tables (this will reset analytics)
+                    db.db.prepare('DELETE FROM costs').run();
+                    db.db.prepare('DELETE FROM tasks').run();
+                    log.success('Analytics database reset.');
+                }
+            }
+        } catch (e) {
+            logger.warn('Failed to load analytics from database');
+            // Fallback to file-based approach
+            if (!fs.existsSync(analyticsPath)) {
+                log.info('No analytics data available yet.');
+                return;
+            }
+            const data = JSON.parse(fs.readFileSync(analyticsPath, 'utf8'));
+            
+            const summary = boxen(
+                `${chalk.bold.white('CORPORATE OVERVIEW')}\n` +
+                `${chalk.cyan('Total Operations:')} ${data.totalOperations}\n` +
+                `${chalk.cyan('Total Tokens:')} ${data.totalTokens.toLocaleString()}\n` +
+                `${chalk.green('Total API Cost:')} $${data.totalCost.toFixed(4)}`,
+                { padding: 1, borderColor: 'green', title: ' ELKHEDR ORCA ANALYTICS ', titleAlignment: 'center' }
+            );
+            console.log('\n' + summary);
+            
+            const action = await new enquirer.Select({
+                message: 'Drill down into metrics:',
+                choices: ['Agent Usage Breakdown', 'Cost Projection', 'Reset Analytics', 'Back']
+            }).run();
+            
+            if (action === 'Agent Usage Breakdown') {
+                const agentTable = new Table({
+                    head: [chalk.cyan('Agent Role'), chalk.cyan('Calls'), chalk.cyan('Tokens'), chalk.cyan('Cost')],
+                    colWidths: [30, 10, 15, 15]
+                });
+                
+                Object.entries(data.agentUsage)
+                    .sort((a, b) => b[1].cost - a[1].cost)
+                    .slice(0, 15)
+                    .forEach(([role, stats]) => {
+                        agentTable.push([role, stats.calls, stats.tokens.toLocaleString(), `$${stats.cost.toFixed(4)}`]);
+                    });
+                
+                console.log('\n' + chalk.bold.blue('Top 15 Most Active Agents (By Cost):'));
+                console.log(agentTable.toString());
+            } else if (action === 'Reset Analytics') {
+                const confirm = await new enquirer.Confirm({ message: 'Are you sure you want to wipe all corporate history?' }).run();
+                if (confirm) {
+                    fs.writeFileSync(analyticsPath, JSON.stringify({ totalOperations: 0, totalCost: 0, totalTokens: 0, agentUsage: {} }));
+                    log.success('Analytics database reset.');
+                }
             }
         }
     }

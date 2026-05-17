@@ -10,8 +10,12 @@ const { withTrace, addTraceMetadata } = require('./utils/tracing.js');
 const enquirer = require('enquirer');
 const fs = require('fs');
 const path = require('path');
+const { getDatabaseInstance } = require('./db/index.js');
 
 const wrap = require('word-wrap');
+
+// Initialize database instance
+const db = getDatabaseInstance();
 
 const termSize = () => {
     const ts = require('terminal-size');
@@ -40,9 +44,7 @@ let historyIndex = -1;
 // Load input history
 function loadInputHistory() {
     try {
-        if (fs.existsSync(historyCachePath)) {
-            inputHistory = JSON.parse(fs.readFileSync(historyCachePath, 'utf8'));
-        }
+        inputHistory = db.getInputHistoryData();
     } catch (e) {
         logger.warn('Failed to load input history');
     }
@@ -51,9 +53,10 @@ function loadInputHistory() {
 // Save input history
 function saveInputHistory() {
     try {
-        // Keep last 100 entries
-        const trimmed = inputHistory.slice(-100);
-        fs.writeFileSync(historyCachePath, JSON.stringify(trimmed, null, 2));
+        // Keep last 100 entries - handled in saveInputHistoryData
+        for (const historyItem of inputHistory) {
+            db.saveInputHistoryData(historyItem);
+        }
     } catch (e) {
         logger.warn('Failed to save input history');
     }
@@ -285,27 +288,22 @@ async function interactiveSession() {
                     }, sessionStats);
                 }
 
-                sessionStats.totalTasks++;
-                
-                // Session saving with traceId
-                try {
-                    let history = [];
-                    if (fs.existsSync(sessionsPath)) {
-                        history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
-                    }
-                    history.push({
-                        timestamp: new Date().toISOString(),
-                        prompt: query,
-                        mode: sessionStats.currentAgent ? 'DIRECT' : sessionStats.level,
-                        agent: sessionStats.currentAgent ? sessionStats.currentAgent.role : 'CEO',
-                        result: result,
-                        tokens: sessionStats.totalTokens,
-                        traceId: traceId
-                    });
-                    fs.writeFileSync(sessionsPath, JSON.stringify(history, null, 2));
-                } catch (e) {
-                    logger.warn('Failed to save session');
-                }
+                 sessionStats.totalTasks++;
+                 
+                 // Session saving with traceId
+                 try {
+                     db.saveSessionData({
+                         timestamp: new Date().toISOString(),
+                         prompt: query,
+                         mode: sessionStats.currentAgent ? 'DIRECT' : sessionStats.level,
+                         agent: sessionStats.currentAgent ? sessionStats.currentAgent.role : 'CEO',
+                         result: result,
+                         tokens: sessionStats.totalTokens,
+                         traceId: traceId
+                     });
+                 } catch (e) {
+                     logger.warn('Failed to save session');
+                 }
 
                 s.stop(chalk.green('✓ Response Received'));
                 

@@ -22,6 +22,7 @@ const {
   fetchUrlSchema
 } = require('./schemas/index.js');
 const { loadConfig, getConfig } = require('./config/index.js');
+const { getDatabaseInstance } = require('./db/index.js');
 
 // Load and validate configuration on module initialization
 loadConfig();
@@ -30,7 +31,7 @@ const config = getConfig();
 const OPENROUTER_API_KEY = config.OPENROUTER_API_KEY;
 const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'), 'utf8'));
 const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it";
-const analyticsPath = path.join(__dirname, '../data/analytics.json');
+const dbInstance = getDatabaseInstance();
 
 // Initialize circuit breaker for OpenRouter API
 const openRouterCircuitBreaker = createCircuitBreaker('OpenRouter', {
@@ -51,27 +52,22 @@ if (!OPENROUTER_API_KEY) {
 /**
  * Update analytics with operation metrics
  */
-function updateAnalytics(agentRole, tokens, cost) {
+async function updateAnalytics(agentRole, tokens, cost) {
   try {
-    if (!fs.existsSync(analyticsPath)) {
-      fs.writeFileSync(analyticsPath, JSON.stringify({ 
-        totalOperations: 0, 
-        totalCost: 0, 
-        totalTokens: 0, 
-        agentUsage: {} 
-      }));
-    }
-    const data = JSON.parse(fs.readFileSync(analyticsPath, 'utf8'));
-    data.totalOperations += 1;
-    data.totalCost += cost;
-    data.totalTokens += tokens;
-    if (!data.agentUsage[agentRole]) {
-      data.agentUsage[agentRole] = { calls: 0, tokens: 0, cost: 0 };
-    }
-    data.agentUsage[agentRole].calls += 1;
-    data.agentUsage[agentRole].tokens += tokens;
-    data.agentUsage[agentRole].cost += cost;
-    fs.writeFileSync(analyticsPath, JSON.stringify(data, null, 2));
+    // Create a task record first
+    const taskResult = dbInstance.db.prepare(`
+      INSERT INTO tasks (agent_role, prompt, result, tokens, cost)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      agentRole,
+      `Analytics update: ${tokens} tokens, $${cost.toFixed(4)} cost`,
+      `Updated analytics for ${agentRole}`,
+      tokens,
+      cost
+    );
+    
+    // Then insert the cost record linked to this task
+    dbInstance.updateAnalytics(taskResult.lastInsertRowid, tokens, cost);
   } catch (e) {
     logger.warn({ error: e.message }, 'Failed to update analytics');
   }
@@ -134,7 +130,7 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
         const tokens = response.data.usage?.total_tokens || 0;
         const cost = (tokens / 1000000) * 0.5;
         
-        updateAnalytics(agentRole, tokens, cost);
+        await updateAnalytics(agentRole, tokens, cost);
         log.info({ tokens, cost }, 'API call successful');
         
         // Handle Tool Calls
@@ -366,5 +362,6 @@ module.exports = {
   runSingleAgent,
   callOpenRouter,
   getCircuitBreakerStatus,
-  resetCircuitBreaker
+  resetCircuitBreaker,
+  updateAnalytics
 };
