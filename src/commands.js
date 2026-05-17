@@ -115,6 +115,31 @@ class CommandRegistry {
                 description: 'Show task queue statistics and job counts',
                 execute: () => this.showQueueStatus()
             },
+            '/workflows': {
+                label: 'List Workflows',
+                description: 'Show all workflows and their status',
+                execute: () => this.listWorkflows()
+            },
+            '/workflow-start': {
+                label: 'Start Workflow',
+                description: 'Start a pending workflow by ID',
+                execute: (args) => this.startWorkflow(args)
+            },
+            '/workflow-status': {
+                label: 'Workflow Status',
+                description: 'Show detailed status of a workflow',
+                execute: (args) => this.showWorkflowStatus(args)
+            },
+            '/workflow-cancel': {
+                label: 'Cancel Workflow',
+                description: 'Cancel a running or paused workflow',
+                execute: (args) => this.cancelWorkflow(args)
+            },
+            '/workflow-archive': {
+                label: 'Archive Workflows',
+                description: 'Archive completed workflows older than 24h',
+                execute: () => this.archiveWorkflows()
+            },
             '/exit': {
                 label: 'Exit',
                 description: 'Terminate the Orca session',
@@ -583,7 +608,6 @@ class CommandRegistry {
     }
 
     async showQueueStatus() {
-        const { TaskQueue } = require('./queue/index.js');
         const queue = new TaskQueue('orca');
         const stats = queue.getStats();
         
@@ -604,6 +628,153 @@ class CommandRegistry {
         
         if (stats.dead > 0) {
             log.warn(`${stats.dead} job(s) in dead letter queue. Use queue.retry() to retry.`);
+        }
+    }
+
+    async listWorkflows() {
+        const engine = new WorkflowEngine({ autoResume: false });
+        const workflows = engine.listWorkflows();
+        const stats = engine.getStats();
+        
+        if (workflows.length === 0) {
+            log.info('No workflows found.');
+            return;
+        }
+        
+        const table = new Table({
+            head: [chalk.cyan('ID'), chalk.cyan('Name'), chalk.cyan('Status'), chalk.cyan('Steps'), chalk.cyan('Created')],
+            colWidths: [25, 25, 12, 8, 20]
+        });
+        
+        for (const wf of workflows) {
+            const statusColor = wf.status === 'completed' ? chalk.green : 
+                              wf.status === 'failed' ? chalk.red :
+                              wf.status === 'running' ? chalk.yellow : chalk.dim;
+            table.push([
+                wf.id.substring(0, 22),
+                wf.name,
+                statusColor(wf.status),
+                stats.total,
+                new Date(wf.createdAt).toLocaleDateString()
+            ]);
+        }
+        
+        console.log('\n' + chalk.bold.blue('Workflows:'));
+        console.log(table.toString());
+        console.log(chalk.dim(`\nTotal: ${workflows.length} | Running: ${stats.running} | Completed: ${stats.completed} | Failed: ${stats.failed}`));
+    }
+
+    async startWorkflow(args) {
+        const id = args[0];
+        
+        if (!id) {
+            log.error('Usage: /workflow-start <workflow-id>');
+            return;
+        }
+        
+        const engine = new WorkflowEngine({ autoResume: false });
+        
+        try {
+            await engine.startWorkflow(id);
+            log.success(`Workflow "${id}" started.`);
+        } catch (error) {
+            log.error(error.message);
+        }
+    }
+
+    async showWorkflowStatus(args) {
+        const id = args[0];
+        
+        if (!id) {
+            log.error('Usage: /workflow-status <workflow-id>');
+            return;
+        }
+        
+        const engine = new WorkflowEngine({ autoResume: false });
+        const workflow = engine.getWorkflow(id);
+        
+        if (!workflow) {
+            log.error(`Workflow "${id}" not found.`);
+            return;
+        }
+        
+        const statusColor = workflow.status === 'completed' ? 'green' : 
+                          workflow.status === 'failed' ? 'red' :
+                          workflow.status === 'running' ? 'yellow' : 'gray';
+        
+        let info = `${chalk.bold.white('WORKFLOW STATUS')}\n\n` +
+            `${chalk.cyan('ID:')} ${workflow.id}\n` +
+            `${chalk.cyan('Name:')} ${workflow.name}\n` +
+            `${chalk.cyan('Status:')} ${chalk[statusColor](workflow.status)}\n` +
+            `${chalk.cyan('Steps:')} ${workflow.currentStepIndex}/${workflow.steps.length}\n` +
+            `${chalk.cyan('Created:')} ${new Date(workflow.createdAt).toLocaleString()}`;
+        
+        if (workflow.completedAt) {
+            info += `\n${chalk.cyan('Completed:')} ${new Date(workflow.completedAt).toLocaleString()}`;
+        }
+        
+        if (workflow.error) {
+            info += `\n${chalk.red('Error:')} ${workflow.error}`;
+        }
+        
+        console.log('\n' + boxen(info, {
+            padding: 1,
+            borderColor: statusColor,
+            title: ` ${workflow.name.toUpperCase()} `,
+            titleAlignment: 'center'
+        }));
+        
+        // Show step details
+        const stepTable = new Table({
+            head: [chalk.cyan('#'), chalk.cyan('Name'), chalk.cyan('Status'), chalk.cyan('Duration')],
+            colWidths: [5, 25, 12, 15]
+        });
+        
+        for (const step of workflow.steps) {
+            const stepStatusColor = step.status === 'completed' ? chalk.green : 
+                                  step.status === 'failed' ? chalk.red :
+                                  step.status === 'running' ? chalk.yellow : chalk.dim;
+            const duration = step.completedAt && step.startedAt 
+                ? `${step.completedAt - step.startedAt}ms` 
+                : '-';
+            stepTable.push([
+                step.id.split('_').pop(),
+                step.name,
+                stepStatusColor(step.status),
+                duration
+            ]);
+        }
+        
+        console.log('\n' + chalk.bold('Steps:'));
+        console.log(stepTable.toString());
+    }
+
+    async cancelWorkflow(args) {
+        const id = args[0];
+        
+        if (!id) {
+            log.error('Usage: /workflow-cancel <workflow-id>');
+            return;
+        }
+        
+        const engine = new WorkflowEngine({ autoResume: false });
+        
+        try {
+            engine.cancelWorkflow(id);
+            log.success(`Workflow "${id}" cancelled.`);
+        } catch (error) {
+            log.error(error.message);
+        }
+    }
+
+    async archiveWorkflows() {
+        const engine = new WorkflowEngine({ autoResume: false });
+        const archived = engine.archive(86400000); // 24 hours
+        
+        if (archived > 0) {
+            log.success(`Archived ${archived} completed workflow(s).`);
+        } else {
+            log.info('No workflows to archive.');
         }
     }
 }
