@@ -172,3 +172,133 @@
 {"level":40,"time":1778994306655,"pid":55092,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"async fail","msg":"Circuit breaker recorded failure"}
 {"level":40,"time":1778994306655,"pid":55092,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"rejected","msg":"Circuit breaker recorded failure"}
 {"level":40,"time":1778994306656,"pid":55092,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":30,"time":1779013795363,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-skill","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013795364,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"echo","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013795364,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"echo","args":{"message":"hello"},"msg":"Executing skill"}
+{"level":30,"time":1779013795364,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-tool","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013795364,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"temp","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013795364,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"temp","msg":"Skill unregistered"}
+{"level":30,"time":1779013795365,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"dup","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013795365,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"a","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013795365,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"b","version":"2.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013795365,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"s1","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013795367,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","version":"1.0.0","permissions":["execute","filesystem"],"msg":"Skill registered"}
+{"level":30,"time":1779013795367,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/terminal","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013795543,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013795543,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/web-search","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013795544,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013795544,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/url-fetch","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013795544,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skillsDir":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills","msg":"Loading skills..."}
+{"level":30,"time":1779013795544,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","version":"1.0.0","permissions":["execute","filesystem"],"msg":"Skill registered"}
+{"level":30,"time":1779013795544,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/terminal","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013795544,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013795544,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/url-fetch","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013795545,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013795545,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/web-search","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013795545,"pid":63041,"hostname":"kmbywtr-mhmwl-Ehab.local","loaded":3,"failed":0,"total":3,"msg":"Skill loading complete"}
+{"level":30,"time":1779013821597,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-skill","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821598,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"echo","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821598,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"echo","args":{"message":"hello"},"msg":"Executing skill"}
+{"level":30,"time":1779013821599,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-tool","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821599,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"temp","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821599,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"temp","msg":"Skill unregistered"}
+{"level":30,"time":1779013821599,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"dup","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821600,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"a","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821600,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"b","version":"2.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821600,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"s1","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821601,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-skill","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821601,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-skill","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/tmp-test-skills/test-skill","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013821603,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skillsDir":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/tmp-test-skills","msg":"Loading skills..."}
+{"level":30,"time":1779013821603,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"skill-a","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821603,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"skill-a","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/tmp-test-skills/skill-a","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013821603,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"skill-b","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013821603,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"skill-b","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/tmp-test-skills/skill-b","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013821603,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","loaded":2,"failed":0,"total":2,"msg":"Skill loading complete"}
+{"level":30,"time":1779013821605,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","version":"1.0.0","permissions":["execute","filesystem"],"msg":"Skill registered"}
+{"level":30,"time":1779013821605,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/terminal","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013821779,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013821779,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/web-search","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013821780,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013821780,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/url-fetch","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013821780,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skillsDir":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills","msg":"Loading skills..."}
+{"level":30,"time":1779013821781,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","version":"1.0.0","permissions":["execute","filesystem"],"msg":"Skill registered"}
+{"level":30,"time":1779013821781,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/terminal","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013821781,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013821781,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/url-fetch","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013821781,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013821781,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/web-search","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013821781,"pid":63308,"hostname":"kmbywtr-mhmwl-Ehab.local","loaded":3,"failed":0,"total":3,"msg":"Skill loading complete"}
+{"level":40,"time":1779013834965,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013834966,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013834966,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013834966,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":2,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013834966,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":3,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":50,"time":1779013834966,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","failureCount":3,"nextAttempt":"2026-05-17T10:30:35.066Z","msg":"Circuit breaker OPEN - failure threshold exceeded"}
+{"level":40,"time":1779013834966,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013834966,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":2,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013834967,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":3,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":50,"time":1779013834967,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","failureCount":3,"nextAttempt":"2026-05-17T10:30:35.067Z","msg":"Circuit breaker OPEN - failure threshold exceeded"}
+{"level":40,"time":1779013834967,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","waitTime":1,"failureCount":3,"msg":"Circuit breaker is OPEN. Retry in 1s"}
+{"level":40,"time":1779013834967,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013834967,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":2,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013834967,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":3,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":50,"time":1779013834967,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","failureCount":3,"nextAttempt":"2026-05-17T10:30:35.067Z","msg":"Circuit breaker OPEN - failure threshold exceeded"}
+{"level":30,"time":1779013835119,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"HALF_OPEN","msg":"Circuit breaker transitioning to HALF_OPEN"}
+{"level":40,"time":1779013835120,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835120,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":2,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835120,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":3,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":50,"time":1779013835120,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","failureCount":3,"nextAttempt":"2026-05-17T10:30:35.220Z","msg":"Circuit breaker OPEN - failure threshold exceeded"}
+{"level":30,"time":1779013835276,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"HALF_OPEN","msg":"Circuit breaker transitioning to HALF_OPEN"}
+{"level":30,"time":1779013835301,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","msg":"Circuit breaker CLOSED - service recovered"}
+{"level":40,"time":1779013835304,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835304,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":2,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835304,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":3,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":50,"time":1779013835304,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","failureCount":3,"nextAttempt":"2026-05-17T10:30:35.404Z","msg":"Circuit breaker OPEN - failure threshold exceeded"}
+{"level":30,"time":1779013835039,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-skill","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835040,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"echo","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835040,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"echo","args":{"message":"hello"},"msg":"Executing skill"}
+{"level":30,"time":1779013835041,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-tool","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835042,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"temp","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835042,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"temp","msg":"Skill unregistered"}
+{"level":30,"time":1779013835043,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"dup","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835043,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"a","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835043,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"b","version":"2.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835043,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"s1","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835044,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-skill","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835044,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"test-skill","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/tmp-test-skills/test-skill","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013835046,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skillsDir":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/tmp-test-skills","msg":"Loading skills..."}
+{"level":30,"time":1779013835046,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"skill-a","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835046,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"skill-a","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/tmp-test-skills/skill-a","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013835047,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"skill-b","version":"1.0.0","permissions":[],"msg":"Skill registered"}
+{"level":30,"time":1779013835047,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"skill-b","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/tmp-test-skills/skill-b","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013835047,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","loaded":2,"failed":0,"total":2,"msg":"Skill loading complete"}
+{"level":30,"time":1779013835050,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","version":"1.0.0","permissions":["execute","filesystem"],"msg":"Skill registered"}
+{"level":30,"time":1779013835050,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/terminal","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013835401,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013835401,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/web-search","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013835402,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013835402,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/url-fetch","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013835402,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skillsDir":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills","msg":"Loading skills..."}
+{"level":30,"time":1779013835403,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","version":"1.0.0","permissions":["execute","filesystem"],"msg":"Skill registered"}
+{"level":30,"time":1779013835403,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"terminal","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/terminal","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013835403,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013835403,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"url-fetch","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/url-fetch","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013835403,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","version":"1.0.0","permissions":["network"],"msg":"Skill registered"}
+{"level":30,"time":1779013835403,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","skill":"web-search","path":"/Users/ekf/Downloads/ELKHEDR_WORKSPACE/elkhedr-orca/skills/web-search","msg":"Skill loaded from directory"}
+{"level":30,"time":1779013835403,"pid":63444,"hostname":"kmbywtr-mhmwl-Ehab.local","loaded":3,"failed":0,"total":3,"msg":"Skill loading complete"}
+{"level":30,"time":1779013835456,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"HALF_OPEN","msg":"Circuit breaker transitioning to HALF_OPEN"}
+{"level":40,"time":1779013835456,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"HALF_OPEN","failureCount":4,"threshold":3,"error":"fail again","msg":"Circuit breaker recorded failure"}
+{"level":50,"time":1779013835456,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","nextAttempt":"2026-05-17T10:30:35.556Z","msg":"Circuit breaker OPEN - recovery test failed"}
+{"level":40,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":2,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":3,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":50,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","failureCount":3,"nextAttempt":"2026-05-17T10:30:35.557Z","msg":"Circuit breaker OPEN - failure threshold exceeded"}
+{"level":40,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":2,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":3,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}
+{"level":50,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","failureCount":3,"nextAttempt":"2026-05-17T10:30:35.557Z","msg":"Circuit breaker OPEN - failure threshold exceeded"}
+{"level":30,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","msg":"Circuit breaker manually reset"}
+{"level":40,"time":1779013835457,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"OPEN","msg":"Circuit breaker manually forced OPEN"}
+{"level":40,"time":1779013835468,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"async fail","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835469,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"rejected","msg":"Circuit breaker recorded failure"}
+{"level":40,"time":1779013835469,"pid":63441,"hostname":"kmbywtr-mhmwl-Ehab.local","component":"CircuitBreaker","name":"TestBreaker","state":"CLOSED","failureCount":1,"threshold":3,"error":"fail","msg":"Circuit breaker recorded failure"}

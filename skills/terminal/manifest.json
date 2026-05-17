@@ -1,0 +1,9 @@
+{
+  "name": "terminal",
+  "version": "1.0.0",
+  "description": "Execute terminal commands with user approval. Supports bash commands for file operations, system checks, and code execution.",
+  "author": "Elkhedr Orca",
+  "permissions": ["execute", "filesystem"],
+  "category": "terminal",
+  "entryPoint": "index.js"
+}

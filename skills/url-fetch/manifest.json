@@ -1,0 +1,9 @@
+{
+  "name": "url-fetch",
+  "version": "1.0.0",
+  "description": "Fetch and read text content from a specific URL.",
+  "author": "Elkhedr Orca",
+  "permissions": ["network"],
+  "category": "web",
+  "entryPoint": "index.js"
+}

@@ -88,7 +88,10 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
 
   const payload = { model, messages };
   
-  if (useTools) payload.tools = skills.toolDefinitions;
+  if (useTools) {
+    skills.init();
+    payload.tools = skills.registry.getToolDefinitions();
+  }
   if (sandbox) {
     messages.unshift({ 
       role: 'system', 
@@ -159,20 +162,24 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
             
             let result;
             try {
-              if (name === "executeTerminal") {
-                const validated = executeTerminalSchema.parse(args);
-                console.log(chalk.yellow(`\n⚠️  Agent ${chalk.bold(agentRole)} wants to run command: ${chalk.bold(validated.command)}`));
-                const approved = await confirm({ message: "Approve terminal command?" });
-                result = approved 
-                  ? await skills.executeTerminal(validated.command) 
-                  : "User denied command execution.";
-                log.info({ approved, command: validated.command }, 'Terminal command handled');
-              } else if (name === "webSearch") {
-                const validated = webSearchSchema.parse(args);
-                result = await skills.webSearch(validated.query);
-              } else if (name === "fetchUrl") {
-                const validated = fetchUrlSchema.parse(args);
-                result = await skills.fetchUrl(validated.url);
+              // Dynamic skill execution
+              if (skills.registry.has(name)) {
+                const manifest = skills.registry.getManifest(name);
+                
+                // Check permissions - terminal requires user approval
+                if (manifest.permissions.includes('execute')) {
+                  const validated = executeTerminalSchema.parse(args);
+                  console.log(chalk.yellow(`\n⚠️  Agent ${chalk.bold(agentRole)} wants to run command: ${chalk.bold(validated.command || JSON.stringify(args))}`));
+                  const approved = await confirm({ message: `Approve ${name} execution?` });
+                  if (!approved) {
+                    result = "User denied command execution.";
+                  } else {
+                    result = await skills.registry.execute(name, args);
+                  }
+                  log.info({ approved, skill: name }, 'Skill execution handled');
+                } else {
+                  result = await skills.registry.execute(name, args);
+                }
               } else {
                 result = `Unknown tool: ${name}`;
               }

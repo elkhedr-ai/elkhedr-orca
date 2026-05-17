@@ -1,112 +1,58 @@
-const { exec } = require('child_process');
-const axios = require('axios');
-const cheerio = require('cheerio');
-const chalk = require('chalk');
-
 /**
- * Skill: Terminal Execution
- * Runs a bash command on the host Mac.
+ * Skills Module - Backward-compatible wrapper around plugin system
+ * 
+ * New code should use the plugin registry directly:
+ *   const { registry } = require('./plugins/registry.js');
+ *   registry.execute('terminal', { command: 'ls' });
  */
+
+const { loadSkills } = require('./plugins/loader.js');
+const { registry } = require('./plugins/registry.js');
+
+// Initialize plugin system on first require
+let initialized = false;
+
+function init() {
+  if (!initialized) {
+    loadSkills();
+    initialized = true;
+  }
+}
+
+// Backward-compatible exports
 async function executeTerminal(command) {
-    return new Promise((resolve) => {
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                resolve(`Error: ${error.message}\nStderr: ${stderr}`);
-            } else {
-                resolve(stdout || "Command executed successfully (no output).");
-            }
-        });
-    });
+  init();
+  return registry.execute('terminal', { command });
 }
 
-/**
- * Skill: Web Search (via Google Scraper)
- * Fetches basic search results for a query.
- */
 async function webSearch(query) {
-    try {
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-        const { data } = await axios.get(searchUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
-        });
-        const $ = cheerio.load(data);
-        const results = [];
-        
-        $('h3').each((i, el) => {
-            if (i < 5) results.push($(el).text());
-        });
-
-        return results.length > 0 
-            ? `Top results for "${query}":\n- ` + results.join('\n- ')
-            : "No search results found.";
-    } catch (e) {
-        return `Web search failed: ${e.message}`;
-    }
+  init();
+  return registry.execute('web-search', { query });
 }
 
-/**
- * Skill: URL Fetch
- * Scrapes text content from a specific URL.
- */
 async function fetchUrl(url) {
-    try {
-        const { data } = await axios.get(url, { timeout: 5000 });
-        const $ = cheerio.load(data);
-        const text = $('body').text().replace(/\s\s+/g, ' ').substring(0, 2000);
-        return text || "No text content found at URL.";
-    } catch (e) {
-        return `Failed to fetch URL: ${e.message}`;
-    }
+  init();
+  return registry.execute('url-fetch', { url });
 }
 
-const toolDefinitions = [
-    {
-        type: "function",
-        function: {
-            name: "executeTerminal",
-            description: "Run a bash command on the user's Mac terminal. Use this for file operations, system checks, or code execution.",
-            parameters: {
-                type: "object",
-                properties: {
-                    command: { type: "string", description: "The bash command to run." }
-                },
-                required: ["command"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "webSearch",
-            description: "Search the internet for real-time information or news.",
-            parameters: {
-                type: "object",
-                properties: {
-                    query: { type: "string", description: "The search query." }
-                },
-                required: ["query"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "fetchUrl",
-            description: "Retrieve and read the text content of a specific website URL.",
-            parameters: {
-                type: "object",
-                properties: {
-                    url: { type: "string", description: "The URL to fetch." }
-                },
-                required: ["url"]
-            }
-        }
-    }
-];
+// Tool definitions for OpenRouter
+function getToolDefinitions() {
+  init();
+  return registry.getToolDefinitions();
+}
 
+// Expose registry for advanced usage
 module.exports = {
-    executeTerminal,
-    webSearch,
-    fetchUrl,
-    toolDefinitions
+  // Legacy API (backward compatible)
+  executeTerminal,
+  webSearch,
+  fetchUrl,
+  get toolDefinitions() {
+    return getToolDefinitions();
+  },
+  
+  // New API
+  registry,
+  init,
+  loadSkills
 };

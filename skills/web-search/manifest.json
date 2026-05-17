@@ -1,0 +1,9 @@
+{
+  "name": "web-search",
+  "version": "1.0.0",
+  "description": "Search the internet using Google scraper. Fetches basic search results for queries.",
+  "author": "Elkhedr Orca",
+  "permissions": ["network"],
+  "category": "web",
+  "entryPoint": "index.js"
+}
