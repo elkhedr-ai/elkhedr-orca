@@ -7,12 +7,13 @@ const { z } = require('zod');
 const skills = require('./skills.js');
 const { logger } = require('./utils/logger.js');
 const { withRetry } = require('./utils/retry.js');
-const { 
-  APIError, 
-  ValidationError, 
-  ConfigError, 
+const { createCircuitBreaker } = require('./utils/circuit-breaker.js');
+const {
+  APIError,
+  ValidationError,
+  ConfigError,
   AgentError,
-  ToolExecutionError 
+  ToolExecutionError
 } = require('./utils/errors.js');
 const {
   promptSchema,
@@ -20,13 +21,24 @@ const {
   webSearchSchema,
   fetchUrlSchema
 } = require('./schemas/index.js');
+const { loadConfig, getConfig } = require('./config/index.js');
 
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+// Load and validate configuration on module initialization
+loadConfig();
+const config = getConfig();
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_API_KEY = config.OPENROUTER_API_KEY;
 const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'), 'utf8'));
 const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it";
 const analyticsPath = path.join(__dirname, '../data/analytics.json');
+
+// Initialize circuit breaker for OpenRouter API
+const openRouterCircuitBreaker = createCircuitBreaker('OpenRouter', {
+  failureThreshold: 5,      // Open after 5 failures
+  successThreshold: 2,      // Close after 2 successes in HALF_OPEN
+  timeout: 60000,           // 60 second timeout
+  resetTimeout: 30000       // Try recovery after 30 seconds
+});
 
 // Validate config at startup
 if (!OPENROUTER_API_KEY) {
@@ -90,26 +102,29 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
     try {
       payload.model = targetModel;
       
-      const response = await withRetry(
-        () => axios.post('https://openrouter.ai/api/v1/chat/completions', payload, {
-          headers: { 
-            'Authorization': `Bearer ${OPENROUTER_API_KEY}`, 
-            'X-Title': 'Elkhedr Orca',
-            'HTTP-Referer': 'https://github.com/ekagent/elkhedr-orca'
-          },
-          timeout: 60000 // 60 second timeout
-        }),
-        {
-          maxRetries: 3,
-          baseDelay: 1000,
-          shouldRetry: (error) => {
-            if (!error.response) return true;
-            if (error.response.status >= 500) return true;
-            if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') return true;
-            return false;
+      // Wrap API call with circuit breaker protection
+      const response = await openRouterCircuitBreaker.execute(async () => {
+        return await withRetry(
+          () => axios.post('https://openrouter.ai/api/v1/chat/completions', payload, {
+            headers: {
+              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+              'X-Title': 'Elkhedr Orca',
+              'HTTP-Referer': 'https://github.com/ekagent/elkhedr-orca'
+            },
+            timeout: 60000 // 60 second timeout
+          }),
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+            shouldRetry: (error) => {
+              if (!error.response) return true;
+              if (error.response.status >= 500) return true;
+              if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') return true;
+              return false;
+            }
           }
-        }
-      );
+        );
+      });
 
       if (response.data?.choices?.[0]) {
         const choice = response.data.choices[0];
@@ -324,4 +339,25 @@ async function runSingleAgent(agentId, prompt, onEvent = null, sessionStats = {}
   return res?.content;
 }
 
-module.exports = { orchestrate, runSingleAgent, callOpenRouter };
+/**
+ * Get circuit breaker health status
+ */
+function getCircuitBreakerStatus() {
+  return openRouterCircuitBreaker.getStatus();
+}
+
+/**
+ * Reset circuit breaker manually
+ */
+function resetCircuitBreaker() {
+  openRouterCircuitBreaker.reset();
+  logger.info('Circuit breaker manually reset');
+}
+
+module.exports = {
+  orchestrate,
+  runSingleAgent,
+  callOpenRouter,
+  getCircuitBreakerStatus,
+  resetCircuitBreaker
+};

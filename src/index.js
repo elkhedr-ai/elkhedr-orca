@@ -50,8 +50,13 @@ async function main() {
   } catch (error) {
     logger.error({ error: error.message, stack: error.stack }, 'Unhandled error in main');
     console.error(`❌ Error: ${error.message}`);
-    if (process.env.ORCA_LOG_LEVEL === 'debug') {
-      console.error(error.stack);
+    try {
+      const { getConfig } = require('./config/index.js');
+      if (getConfig().ORCA_LOG_LEVEL === 'debug') {
+        console.error(error.stack);
+      }
+    } catch {
+      // Config not loaded, don't show stack
     }
     process.exit(1);
   }

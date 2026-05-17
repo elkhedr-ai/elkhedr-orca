@@ -12,8 +12,17 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
+function getLogLevel() {
+  try {
+    const { getConfig } = require('../config/index.js');
+    return getConfig().ORCA_LOG_LEVEL;
+  } catch {
+    return process.env.ORCA_LOG_LEVEL || 'info';
+  }
+}
+
 const logger = pino({
-  level: process.env.ORCA_LOG_LEVEL || 'info',
+  level: getLogLevel(),
   transport: {
     targets: [
       {
@@ -23,7 +32,7 @@ const logger = pino({
           translateTime: 'SYS:standard',
           ignore: 'pid,hostname'
         },
-        level: process.env.NODE_ENV === 'development' ? 'debug' : 'info'
+        level: getLogLevel() === 'debug' ? 'debug' : 'info'
       },
       {
         target: 'pino/file',

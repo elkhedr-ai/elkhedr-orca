@@ -229,7 +229,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       
       case "orca_get_health": {
-        const apiKey = process.env.OPENROUTER_API_KEY;
+        const { getConfig } = require('./config/index.js');
+        let apiKey;
+        try {
+          apiKey = getConfig().OPENROUTER_API_KEY;
+        } catch {
+          apiKey = null;
+        }
         const health = {
           status: apiKey ? "healthy" : "unhealthy",
           apiKey: apiKey ? "configured" : "missing",
