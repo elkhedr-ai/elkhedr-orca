@@ -11,6 +11,9 @@ const { registry } = require('./plugins/registry.js');
 const { reloadConfig, getConfig, subscribe, unsubscribe } = require('./config/index.js');
 const { approveSkill, revokeApproval, getApprovalStatus, getElevatedPermissions } = require('./plugins/permissions.js');
 const { TaskQueue } = require('./queue/index.js');
+const { compileWorkflowDefinition, loadFromFile, listDefinitions } = require('./workflows/dsl.js');
+const { registerBuiltInHandlers } = require('./workflows/handlers.js');
+const { validateCompiledWorkflow, getWorkflowSummary } = require('./workflows/validator.js');
 
 const agentsDataPath = path.join(__dirname, 'agents.json');
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
@@ -139,6 +142,21 @@ class CommandRegistry {
                 label: 'Archive Workflows',
                 description: 'Archive completed workflows older than 24h',
                 execute: () => this.archiveWorkflows()
+            },
+            '/workflow-load': {
+                label: 'Load Workflow Definition',
+                description: 'Load a workflow from JSON definition file',
+                execute: (args) => this.loadWorkflowDefinition(args)
+            },
+            '/workflow-validate': {
+                label: 'Validate Workflow',
+                description: 'Validate a workflow definition file',
+                execute: (args) => this.validateWorkflowDefinition(args)
+            },
+            '/workflow-run': {
+                label: 'Run Workflow Definition',
+                description: 'Load and execute a workflow from JSON file',
+                execute: (args) => this.runWorkflowDefinition(args)
             },
             '/exit': {
                 label: 'Exit',
@@ -775,6 +793,126 @@ class CommandRegistry {
             log.success(`Archived ${archived} completed workflow(s).`);
         } else {
             log.info('No workflows to archive.');
+        }
+    }
+
+    async loadWorkflowDefinition(args) {
+        const filePath = args[0];
+        
+        if (!filePath) {
+            log.error('Usage: /workflow-load <file-path>');
+            return;
+        }
+        
+        const s = spinner();
+        s.start('Loading workflow definition...');
+        
+        try {
+            const definition = loadFromFile(filePath);
+            const summary = getWorkflowSummary(definition);
+            
+            s.stop('Workflow loaded');
+            
+            console.log(boxen(
+                `${chalk.cyan('Name:')} ${summary.name}\n` +
+                `${chalk.cyan('Version:')} ${summary.version}\n` +
+                `${chalk.cyan('Description:')} ${summary.description || 'N/A'}\n` +
+                `${chalk.cyan('Steps:')} ${summary.stepCount}\n` +
+                `${chalk.cyan('Complexity:')} ${summary.complexity}\n` +
+                `${chalk.cyan('Has Conditions:')} ${summary.hasConditions ? 'Yes' : 'No'}\n` +
+                `${chalk.cyan('Has Parallel:')} ${summary.hasParallel ? 'Yes' : 'No'}\n` +
+                `${chalk.cyan('Has Approvals:')} ${summary.hasApprovals ? 'Yes' : 'No'}`,
+                { padding: 1, borderColor: 'blue', title: ' WORKFLOW DEFINITION ' }
+            ));
+            
+        } catch (error) {
+            s.stop('Failed');
+            log.error(error.message);
+        }
+    }
+
+    async validateWorkflowDefinition(args) {
+        const filePath = args[0];
+        
+        if (!filePath) {
+            log.error('Usage: /workflow-validate <file-path>');
+            return;
+        }
+        
+        const s = spinner();
+        s.start('Validating workflow...');
+        
+        try {
+            const definition = loadFromFile(filePath);
+            const compiled = compileWorkflowDefinition(definition);
+            const validation = validateCompiledWorkflow(compiled);
+            
+            s.stop(validation.valid ? chalk.green('Valid') : chalk.yellow('Issues found'));
+            
+            if (validation.valid) {
+                log.success('Workflow definition is valid and executable.');
+                log.info(`Steps: ${validation.stepCount}`);
+            } else {
+                log.warn('Validation issues found:');
+                validation.issues.forEach(issue => log.warn(`  - ${issue}`));
+            }
+            
+        } catch (error) {
+            s.stop('Invalid');
+            log.error(error.message);
+        }
+    }
+
+    async runWorkflowDefinition(args) {
+        const filePath = args[0];
+        
+        if (!filePath) {
+            log.error('Usage: /workflow-run <file-path>');
+            return;
+        }
+        
+        const s = spinner();
+        s.start('Loading and executing workflow...');
+        
+        try {
+            const definition = loadFromFile(filePath);
+            const compiled = compileWorkflowDefinition(definition);
+            const validation = validateCompiledWorkflow(compiled);
+            
+            if (!validation.valid) {
+                s.stop('Invalid');
+                log.warn('Workflow has issues:');
+                validation.issues.forEach(issue => log.warn(`  - ${issue}`));
+                return;
+            }
+            
+            const engine = new WorkflowEngine({ autoResume: false });
+            registerBuiltInHandlers(engine);
+            
+            const workflow = engine.createWorkflow(
+                compiled.name,
+                compiled.steps,
+                { context: compiled.context, description: compiled.description }
+            );
+            
+            const completedPromise = new Promise(resolve => {
+                engine.on('workflow:completed', (wf) => resolve(wf));
+                engine.on('workflow:failed', (wf, error) => resolve(wf));
+            });
+            
+            await engine.startWorkflow(workflow.id);
+            const result = await completedPromise;
+            
+            s.stop(result.status === 'completed' ? chalk.green('Completed') : chalk.red('Failed'));
+            
+            log.info(`Workflow "${result.name}" ${result.status}`);
+            if (result.error) {
+                log.error(`Error: ${result.error}`);
+            }
+            
+        } catch (error) {
+            s.stop('Failed');
+            log.error(error.message);
         }
     }
 }
