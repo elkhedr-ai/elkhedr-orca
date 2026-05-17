@@ -2,12 +2,17 @@
 const { orchestrate, runSingleAgent } = require('./core.js');
 const { parseArgs, displayHelp } = require('./cli/args.js');
 const { logger } = require('./utils/logger.js');
+const { withTrace } = require('./utils/tracing.js');
 
 async function main() {
-  try {
-    const { options, prompt, isInteractive } = parseArgs(process.argv);
-    
-    logger.info({ options, hasPrompt: !!prompt }, 'Orca CLI started');
+  const { options, prompt, isInteractive } = parseArgs(process.argv);
+  
+  return withTrace(async (traceId) => {
+    logger.info({ 
+      options, 
+      hasPrompt: !!prompt,
+      entryPoint: 'cli'
+    }, 'Orca CLI started');
 
     if (options.agent) {
       // Direct agent mode
@@ -47,7 +52,10 @@ async function main() {
       const { interactiveSession } = require('./tui.js');
       await interactiveSession();
     }
-  } catch (error) {
+  }, { 
+    operation: isInteractive ? 'cli:interactive' : (prompt ? 'cli:execute' : 'cli:unknown'),
+    metadata: { args: process.argv.slice(2) }
+  }).catch((error) => {
     logger.error({ error: error.message, stack: error.stack }, 'Unhandled error in main');
     console.error(`❌ Error: ${error.message}`);
     try {
@@ -59,7 +67,7 @@ async function main() {
       // Config not loaded, don't show stack
     }
     process.exit(1);
-  }
+  });
 }
 
 if (require.main === module) {

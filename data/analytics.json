@@ -1,7 +1,7 @@
 {
-  "totalOperations": 5,
-  "totalCost": 0.0006644999999999999,
-  "totalTokens": 1329,
+  "totalOperations": 7,
+  "totalCost": 0.0007909999999999999,
+  "totalTokens": 1582,
   "agentUsage": {
     "Gemma 4 (Instant)": {
       "calls": 1,
@@ -27,6 +27,16 @@
       "calls": 1,
       "tokens": 469,
       "cost": 0.0002345
+    },
+    "Router": {
+      "calls": 1,
+      "tokens": 32,
+      "cost": 0.000016
+    },
+    "Instant": {
+      "calls": 1,
+      "tokens": 221,
+      "cost": 0.0001105
     }
   }
 }

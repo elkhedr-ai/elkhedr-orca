@@ -4,6 +4,7 @@ const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio
 const { CallToolRequestSchema, ListToolsRequestSchema } = require("@modelcontextprotocol/sdk/types.js");
 const { orchestrate, runSingleAgent } = require("./core.js");
 const { logger } = require("./utils/logger.js");
+const { withTrace } = require("./utils/tracing.js");
 const fs = require('fs');
 const path = require('path');
 
@@ -140,10 +141,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const toolName = request.params.name;
   const args = request.params.arguments || {};
   
-  logger.info({ tool: toolName, args }, 'MCP tool called');
+  return withTrace(async (traceId) => {
+    logger.info({ tool: toolName, args }, 'MCP tool called');
 
-  try {
-    switch (toolName) {
+    try {
+      switch (toolName) {
       case "orca_execute": {
         const { prompt, level = 'Auto', sandbox = true } = args;
         const result = await orchestrate(prompt, null, { level, sandbox });
@@ -256,13 +258,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           isError: true,
         };
     }
-  } catch (error) {
-    logger.error({ tool: toolName, error: error.message }, 'MCP tool error');
-    return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
-      isError: true,
-    };
-  }
+    } catch (error) {
+      logger.error({ tool: toolName, error: error.message }, 'MCP tool error');
+      return {
+        content: [{ type: "text", text: `Error: ${error.message}` }],
+        isError: true,
+      };
+    }
+  }, { 
+    operation: `mcp:${toolName}`,
+    metadata: { toolName, args }
+  });
 });
 
 async function main() {

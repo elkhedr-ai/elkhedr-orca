@@ -1,5 +1,6 @@
 /**
  * Structured logging with Pino
+ * Auto-includes trace context from AsyncLocalStorage
  */
 
 const pino = require('pino');
@@ -21,8 +22,28 @@ function getLogLevel() {
   }
 }
 
+// Mixin to auto-include trace context in every log entry
+function tracingMixin() {
+  try {
+    const { getTraceContext } = require('./tracing.js');
+    const context = getTraceContext();
+    if (context) {
+      return {
+        traceId: context.traceId,
+        spanId: context.spanId,
+        parentTraceId: context.parentTraceId,
+        operation: context.operation
+      };
+    }
+  } catch {
+    // Tracing not available yet
+  }
+  return {};
+}
+
 const logger = pino({
   level: getLogLevel(),
+  mixin: tracingMixin,
   transport: {
     targets: [
       {

@@ -26,7 +26,25 @@ orca "Build a full-stack SaaS app and draft a marketing plan"
 
 - `src/index.js`: The Orchestration Engine.
 - `src/agents.json`: The 100-agent registry.
+- `src/core.js`: Core orchestration with circuit breaker protection.
+- `src/utils/`: Error handling, retry logic, logging, and circuit breaker.
 - `install.sh`: The automated installer.
+
+## 🔧 Features
+
+- **Circuit Breaker Pattern**: Automatic failure detection and recovery for API calls
+- **Structured Logging**: Pino-based logging with trace IDs and correlation
+- **Retry Logic**: Exponential backoff with jitter for transient failures
+- **Input Validation**: Zod schemas for all user inputs and configurations
+- **100 Specialized Agents**: Each with primary and fallback models
+- **Interactive TUI**: Rich terminal interface with real-time updates
+
+## 📚 Documentation
+
+- [Circuit Breaker Guide](docs/CIRCUIT_BREAKER.md) - Resilience and failure handling
+- [Architecture Overview](docs/ARCHITECTURE.md) - System design and patterns
+- [TUI Guide](docs/TUI_GUIDE.md) - Terminal interface usage
+- [Agent Directory](docs/AGENT_DIRECTORY.md) - Complete agent catalog
 
 ## 🛡️ License
 ISC

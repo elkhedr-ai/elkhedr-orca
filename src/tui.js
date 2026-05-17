@@ -6,6 +6,7 @@ const gradient = require('gradient-string');
 const core = require('./core.js');
 const { CommandRegistry } = require('./commands.js');
 const { logger } = require('./utils/logger.js');
+const { withTrace, addTraceMetadata } = require('./utils/tracing.js');
 const enquirer = require('enquirer');
 const fs = require('fs');
 const path = require('path');
@@ -243,104 +244,116 @@ async function interactiveSession() {
             if (isHandled) continue;
         }
 
-        // Execution Logic
-        const s = spinner();
-        const startMsg = sessionStats.currentAgent 
-            ? `Consulting ${sessionStats.currentAgent.role}...` 
-            : (sessionStats.level === 'Auto' ? 'Analyzing task for optimal routing...' : `Executing ${sessionStats.level} path...`);
-        s.start(chalk.blue(startMsg));
-        
-        logger.info({ query: query.substring(0, 100), mode: sessionStats.currentAgent ? 'DIRECT' : sessionStats.level }, 'Processing query');
-
-        try {
-            let result;
-            if (sessionStats.currentAgent) {
-                // Direct Agent Mode
-                result = await core.runSingleAgent(sessionStats.currentAgent.id, query, (event) => {
-                    if (event.type === 'usage' && event.usage) {
-                        sessionStats.totalTokens += event.usage.total_tokens;
-                        sessionStats.estimatedCost += (event.usage.total_tokens / 1000000) * 0.50; 
-                    }
-                }, sessionStats);
-            } else {
-                // Standard Orchestration Mode
-                result = await core.orchestrate(query, (event) => {
-                    if (event.activeCount !== undefined) {
-                        sessionStats.activeAgents = event.activeCount;
-                    }
-                    if (event.type === 'agent_start') {
-                        sessionStats.lastModel = event.agent;
-                        s.message(chalk.white(`[${chalk.blue(event.agent)}] `) + chalk.dim(event.task));
-                    } else if (event.type === 'status') {
-                        s.message(chalk.yellow(event.message));
-                    } else if (event.type === 'usage' && event.usage) {
-                        sessionStats.totalTokens += event.usage.total_tokens;
-                        sessionStats.estimatedCost += (event.usage.total_tokens / 1000000) * 0.50; 
-                    }
-                }, sessionStats);
-            }
-
-            sessionStats.totalTasks++;
+        // Execution Logic with Tracing
+        await withTrace(async (traceId) => {
+            addTraceMetadata('query', query.substring(0, 100));
+            addTraceMetadata('mode', sessionStats.currentAgent ? 'DIRECT' : sessionStats.level);
             
-            // Session saving
+            const s = spinner();
+            const startMsg = sessionStats.currentAgent 
+                ? `Consulting ${sessionStats.currentAgent.role}...` 
+                : (sessionStats.level === 'Auto' ? 'Analyzing task for optimal routing...' : `Executing ${sessionStats.level} path...`);
+            s.start(chalk.blue(startMsg));
+            
+            logger.info({ query: query.substring(0, 100), mode: sessionStats.currentAgent ? 'DIRECT' : sessionStats.level }, 'Processing query');
+
             try {
-                let history = [];
-                if (fs.existsSync(sessionsPath)) {
-                    history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+                let result;
+                if (sessionStats.currentAgent) {
+                    // Direct Agent Mode
+                    result = await core.runSingleAgent(sessionStats.currentAgent.id, query, (event) => {
+                        if (event.type === 'usage' && event.usage) {
+                            sessionStats.totalTokens += event.usage.total_tokens;
+                            sessionStats.estimatedCost += (event.usage.total_tokens / 1000000) * 0.50; 
+                        }
+                    }, sessionStats);
+                } else {
+                    // Standard Orchestration Mode
+                    result = await core.orchestrate(query, (event) => {
+                        if (event.activeCount !== undefined) {
+                            sessionStats.activeAgents = event.activeCount;
+                        }
+                        if (event.type === 'agent_start') {
+                            sessionStats.lastModel = event.agent;
+                            s.message(chalk.white(`[${chalk.blue(event.agent)}] `) + chalk.dim(event.task));
+                        } else if (event.type === 'status') {
+                            s.message(chalk.yellow(event.message));
+                        } else if (event.type === 'usage' && event.usage) {
+                            sessionStats.totalTokens += event.usage.total_tokens;
+                            sessionStats.estimatedCost += (event.usage.total_tokens / 1000000) * 0.50; 
+                        }
+                    }, sessionStats);
                 }
-                history.push({
-                    timestamp: new Date().toISOString(),
-                    prompt: query,
-                    mode: sessionStats.currentAgent ? 'DIRECT' : sessionStats.level,
-                    agent: sessionStats.currentAgent ? sessionStats.currentAgent.role : 'CEO',
-                    result: result,
-                    tokens: sessionStats.totalTokens
+
+                sessionStats.totalTasks++;
+                
+                // Session saving with traceId
+                try {
+                    let history = [];
+                    if (fs.existsSync(sessionsPath)) {
+                        history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+                    }
+                    history.push({
+                        timestamp: new Date().toISOString(),
+                        prompt: query,
+                        mode: sessionStats.currentAgent ? 'DIRECT' : sessionStats.level,
+                        agent: sessionStats.currentAgent ? sessionStats.currentAgent.role : 'CEO',
+                        result: result,
+                        tokens: sessionStats.totalTokens,
+                        traceId: traceId
+                    });
+                    fs.writeFileSync(sessionsPath, JSON.stringify(history, null, 2));
+                } catch (e) {
+                    logger.warn('Failed to save session');
+                }
+
+                s.stop(chalk.green('✓ Response Received'));
+                
+                const { columns } = termSize();
+                const boxWidth = Math.min(columns - 10, 120);
+                
+                const wrappedResult = wrap(result, {
+                    width: boxWidth - 4,
+                    indent: '',
+                    trim: true
                 });
-                fs.writeFileSync(sessionsPath, JSON.stringify(history, null, 2));
-            } catch (e) {
-                logger.warn('Failed to save session');
-            }
 
-            s.stop(chalk.green('✓ Response Received'));
-            
-            const { columns } = termSize();
-            const boxWidth = Math.min(columns - 10, 120);
-            
-            const wrappedResult = wrap(result, {
-                width: boxWidth - 4,
-                indent: '',
-                trim: true
-            });
-
-            console.log(boxen(wrappedResult, {
-                width: boxWidth,
-                padding: 1,
-                margin: { left: Math.floor((columns - boxWidth) / 2), top: 1, bottom: 1 },
-                borderStyle: 'double',
-                borderColor: sessionStats.currentAgent ? 'magenta' : 'blue',
-                title: chalk.bold(sessionStats.currentAgent ? ` ${sessionStats.currentAgent.role.toUpperCase()} ` : ' EXECUTIVE SUMMARY '),
-                titleAlignment: 'center'
-            }));
-
-        } catch (error) {
-            s.stop(chalk.red('✗ Orchestration Failed'));
-            
-            logger.error({ error: error.message, stack: error.stack }, 'Orchestration error');
-            
-            const errorBox = boxen(
-                `${chalk.red.bold('Error:')} ${error.message}\n\n` +
-                `${chalk.dim('Code:')} ${error.code || 'UNKNOWN'}\n` +
-                `${chalk.dim('Trace ID:')} ${error.traceId || 'N/A'}`,
-
-                {
+                console.log(boxen(wrappedResult, {
+                    width: boxWidth,
                     padding: 1,
-                    borderColor: 'red',
-                    title: ' ERROR ',
+                    margin: { left: Math.floor((columns - boxWidth) / 2), top: 1, bottom: 1 },
+                    borderStyle: 'double',
+                    borderColor: sessionStats.currentAgent ? 'magenta' : 'blue',
+                    title: chalk.bold(sessionStats.currentAgent ? ` ${sessionStats.currentAgent.role.toUpperCase()} ` : ' EXECUTIVE SUMMARY '),
                     titleAlignment: 'center'
-                }
-            );
-            console.log(errorBox);
-        }
+                }));
+
+            } catch (error) {
+                s.stop(chalk.red('✗ Orchestration Failed'));
+                
+                logger.error({ error: error.message, stack: error.stack }, 'Orchestration error');
+                
+                const errorBox = boxen(
+                    `${chalk.red.bold('Error:')} ${error.message}\n\n` +
+                    `${chalk.dim('Code:')} ${error.code || 'UNKNOWN'}\n` +
+                    `${chalk.dim('Trace ID:')} ${traceId}`,
+
+                    {
+                        padding: 1,
+                        borderColor: 'red',
+                        title: ' ERROR ',
+                        titleAlignment: 'center'
+                    }
+                );
+                console.log(errorBox);
+            }
+        }, { 
+            operation: sessionStats.currentAgent ? 'tui:direct-agent' : 'tui:orchestrate',
+            metadata: { 
+                agentId: sessionStats.currentAgent?.id,
+                level: sessionStats.level
+            }
+        });
     }
 }
 

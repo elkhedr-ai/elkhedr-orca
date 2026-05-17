@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const Table = require('cli-table3');
 const enquirer = require('enquirer');
+const { getCircuitBreakerStatus, resetCircuitBreaker } = require('./core.js');
 
 const agentsDataPath = path.join(__dirname, 'agents.json');
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
@@ -50,6 +51,11 @@ class CommandRegistry {
                 label: 'Provider Status',
                 description: 'Check status of configured AI providers',
                 execute: () => this.checkProviders()
+            },
+            '/health': {
+                label: 'System Health',
+                description: 'Check circuit breaker and system health status',
+                execute: () => this.showHealth()
             },
             '/clear': {
                 label: 'Clear Screen',
@@ -293,6 +299,54 @@ class CommandRegistry {
     checkProviders() {
         log.info(chalk.bold('Provider Connectivity:'));
         log.success(`OpenRouter: ${chalk.green('CONNECTED')} (Premium Tier)`);
+    }
+
+    async showHealth() {
+        const status = getCircuitBreakerStatus();
+        
+        const stateColor = status.state === 'CLOSED' ? 'green' :
+                          status.state === 'HALF_OPEN' ? 'yellow' : 'red';
+        const stateIcon = status.isHealthy ? '✓' : '⚠️';
+        
+        let healthInfo = `${chalk.bold.white('SYSTEM HEALTH STATUS')}\n\n` +
+            `${chalk.cyan('Circuit Breaker:')} ${status.name}\n` +
+            `${chalk.cyan('State:')} ${chalk[stateColor](status.state)} ${stateIcon}\n` +
+            `${chalk.cyan('Health:')} ${status.isHealthy ? chalk.green('HEALTHY') : chalk.red('DEGRADED')}\n` +
+            `${chalk.cyan('Failure Count:')} ${status.failureCount}/${status.failureThreshold}\n` +
+            `${chalk.cyan('Success Count:')} ${status.successCount}/${status.successThreshold}`;
+        
+        if (status.lastFailureTime) {
+            const timeSince = Math.round((Date.now() - status.lastFailureTime) / 1000);
+            healthInfo += `\n${chalk.cyan('Last Failure:')} ${timeSince}s ago`;
+        }
+        
+        if (status.nextAttempt) {
+            const waitTime = Math.ceil((status.nextAttempt - Date.now()) / 1000);
+            healthInfo += `\n${chalk.cyan('Next Retry:')} ${waitTime}s`;
+        }
+        
+        console.log('\n' + boxen(healthInfo, {
+            padding: 1,
+            borderColor: stateColor,
+            title: ' CIRCUIT BREAKER STATUS ',
+            titleAlignment: 'center'
+        }));
+        
+        if (!status.isHealthy) {
+            const action = await new enquirer.Select({
+                message: 'Circuit breaker is not healthy. What would you like to do?',
+                choices: [
+                    { name: 'reset', message: 'Reset Circuit Breaker (Force Recovery)' },
+                    { name: 'wait', message: 'Wait for Automatic Recovery' },
+                    { name: 'back', message: 'Back' }
+                ]
+            }).run();
+            
+            if (action === 'reset') {
+                resetCircuitBreaker();
+                log.success(chalk.green('Circuit breaker has been reset. System is now healthy.'));
+            }
+        }
     }
 }
 
