@@ -10,12 +10,20 @@ const { withTrace, addTraceMetadata } = require('./utils/tracing.js');
 const enquirer = require('enquirer');
 const fs = require('fs');
 const path = require('path');
-const { getDatabaseInstance } = require('./db/index.js');
+const { initializeDatabaseInstance } = require('./db/index.js');
 
 const wrap = require('word-wrap');
 
-// Initialize database instance
-const db = getDatabaseInstance();
+// Database instance will be initialized asynchronously
+let db = null;
+
+// Initialize database on first use
+async function getDb() {
+  if (!db) {
+    db = await initializeDatabaseInstance();
+  }
+  return db;
+}
 
 const termSize = () => {
     const ts = require('terminal-size');
@@ -42,28 +50,30 @@ let inputHistory = [];
 let historyIndex = -1;
 
 // Load input history
-function loadInputHistory() {
+async function loadInputHistory() {
     try {
-        inputHistory = db.getInputHistoryData();
+        const database = await getDb();
+        inputHistory = await database.getInputHistoryData();
     } catch (e) {
         logger.warn('Failed to load input history');
     }
 }
 
 // Save input history
-function saveInputHistory() {
+async function saveInputHistory() {
     try {
+        const database = await getDb();
         // Keep last 100 entries - handled in saveInputHistoryData
         for (const historyItem of inputHistory) {
-            db.saveInputHistoryData(historyItem);
+            await database.saveInputHistoryData(historyItem);
         }
     } catch (e) {
         logger.warn('Failed to save input history');
     }
 }
 
-// Initialize Registry
-const commandRegistry = new CommandRegistry(sessionStats, core);
+// CommandRegistry will be initialized after database is ready
+let commandRegistry = null;
 
 function centerText(text) {
     const { columns } = termSize();
@@ -198,7 +208,13 @@ class OrcaPrompt extends enquirer.AutoComplete {
 }
 
 async function interactiveSession() {
-    loadInputHistory();
+    // Initialize database first
+    const database = await getDb();
+    
+    // Initialize CommandRegistry with database instance
+    commandRegistry = new CommandRegistry(sessionStats, core, database);
+    
+    await loadInputHistory();
     await showHeader();
     
     while (true) {
@@ -292,7 +308,8 @@ async function interactiveSession() {
                  
                  // Session saving with traceId
                  try {
-                     db.saveSessionData({
+                     const database = await getDb();
+                     await database.saveSessionData({
                          timestamp: new Date().toISOString(),
                          prompt: query,
                          mode: sessionStats.currentAgent ? 'DIRECT' : sessionStats.level,

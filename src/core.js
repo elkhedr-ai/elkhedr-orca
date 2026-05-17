@@ -22,7 +22,7 @@ const {
   fetchUrlSchema
 } = require('./schemas/index.js');
 const { loadConfig, getConfig } = require('./config/index.js');
-const { getDatabaseInstance } = require('./db/index.js');
+const { initializeDatabaseInstance } = require('./db/index.js');
 
 // Load and validate configuration on module initialization
 loadConfig();
@@ -31,7 +31,17 @@ const config = getConfig();
 const OPENROUTER_API_KEY = config.OPENROUTER_API_KEY;
 const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'), 'utf8'));
 const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it";
-const dbInstance = getDatabaseInstance();
+
+// Database instance will be initialized asynchronously
+let dbInstance = null;
+
+// Initialize database on first use
+async function getDbInstance() {
+  if (!dbInstance) {
+    dbInstance = await initializeDatabaseInstance();
+  }
+  return dbInstance;
+}
 
 // Initialize circuit breaker for OpenRouter API
 const openRouterCircuitBreaker = createCircuitBreaker('OpenRouter', {
@@ -54,20 +64,23 @@ if (!OPENROUTER_API_KEY) {
  */
 async function updateAnalytics(agentRole, tokens, cost) {
   try {
+    const db = await getDbInstance();
+    
     // Create a task record first
-    const taskResult = dbInstance.db.prepare(`
-      INSERT INTO tasks (agent_role, prompt, result, tokens, cost)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(
-      agentRole,
-      `Analytics update: ${tokens} tokens, $${cost.toFixed(4)} cost`,
-      `Updated analytics for ${agentRole}`,
-      tokens,
-      cost
+    const taskResult = await db.getAdapter().execute(
+      `INSERT INTO tasks (agent_role, prompt, result, tokens, cost)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        agentRole,
+        `Analytics update: ${tokens} tokens, $${cost.toFixed(4)} cost`,
+        `Updated analytics for ${agentRole}`,
+        tokens,
+        cost
+      ]
     );
     
     // Then insert the cost record linked to this task
-    dbInstance.updateAnalytics(taskResult.lastInsertRowid, tokens, cost);
+    await db.updateAnalytics(taskResult.lastInsertRowid, tokens, cost);
   } catch (e) {
     logger.warn({ error: e.message }, 'Failed to update analytics');
   }

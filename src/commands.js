@@ -23,9 +23,10 @@ const skillsPath = path.join(__dirname, '../skills/registry.json');
 const analyticsPath = path.join(__dirname, '../data/analytics.json');
 
 class CommandRegistry {
-    constructor(sessionStats, orchestratorRef) {
+    constructor(sessionStats, orchestratorRef, dbInstance = null) {
         this.sessionStats = sessionStats;
-        this.orchestratorRef = orchestratorRef; 
+        this.orchestratorRef = orchestratorRef;
+        this.db = dbInstance;
         this.commands = {
             '/sandbox': {
                 label: 'Toggle Sandbox',
@@ -338,9 +339,12 @@ class CommandRegistry {
         log.info(chalk.dim(`Showing first 15 of 100 agents. Use /agents for interactive management.`));
     }
 
-    listSessions() {
+    async listSessions() {
         try {
-            const history = db.getSessionsData(5);
+            if (!this.db) {
+                throw new Error('Database not available');
+            }
+            const history = await this.db.getSessionsData(5);
             if (history.length === 0) {
                 log.info('No session history found.');
                 return;
@@ -350,7 +354,7 @@ class CommandRegistry {
                 console.log(`  ${chalk.cyan(i+1)}: ${chalk.dim(s.timestamp)} - ${chalk.white(s.prompt.substring(0, 50))}...`);
             });
         } catch (e) {
-            logger.warn('Failed to load session history from database');
+            log.warn('Failed to load session history from database');
             // Fallback to file-based approach
             if (!fs.existsSync(sessionsPath)) return;
             const history = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
@@ -382,8 +386,11 @@ class CommandRegistry {
 
     async showAnalytics() {
         try {
-            const analyticsData = db.getAnalyticsData();
-            const agentUsage = db.getAgentUsageData();
+            if (!this.db) {
+                throw new Error('Database not available');
+            }
+            const analyticsData = await this.db.getAnalyticsData();
+            const agentUsage = await this.db.getAgentUsageData();
             
             const summary = boxen(
                 `${chalk.bold.white('CORPORATE OVERVIEW')}\n` +
@@ -419,13 +426,13 @@ class CommandRegistry {
                 if (confirm) {
                     // Reset analytics in database
                     // Clear tasks and costs tables (this will reset analytics)
-                    db.db.prepare('DELETE FROM costs').run();
-                    db.db.prepare('DELETE FROM tasks').run();
+                    await this.db.getAdapter().execute('DELETE FROM costs');
+                    await this.db.getAdapter().execute('DELETE FROM tasks');
                     log.success('Analytics database reset.');
                 }
             }
         } catch (e) {
-            logger.warn('Failed to load analytics from database');
+            log.warn('Failed to load analytics from database');
             // Fallback to file-based approach
             if (!fs.existsSync(analyticsPath)) {
                 log.info('No analytics data available yet.');

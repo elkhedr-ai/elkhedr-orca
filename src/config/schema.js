@@ -12,7 +12,25 @@ const envSchema = z.object({
 
   // Optional with defaults
   ORCA_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  
+  // Database configuration
+  ORCA_DB_TYPE: z.enum(['sqlite', 'postgresql', 'postgres', 'pg']).default('sqlite'),
   ORCA_DB_URL: z.string().optional(),
+  ORCA_DB_PATH: z.string().optional(),
+  ORCA_DB_HOST: z.string().optional(),
+  ORCA_DB_PORT: z.string().optional(),
+  ORCA_DB_NAME: z.string().optional(),
+  ORCA_DB_USER: z.string().optional(),
+  ORCA_DB_PASSWORD: z.string().optional(),
+  ORCA_DB_SSL: z.string().optional(),
+  ORCA_DB_POOL_MIN: z.string().default('2'),
+  ORCA_DB_POOL_MAX: z.string().default('10'),
+  ORCA_DB_POOL_IDLE_TIMEOUT: z.string().default('30000'),
+  ORCA_DB_POOL_ACQUIRE_TIMEOUT: z.string().default('60000'),
+  ORCA_DB_DEBUG: z.string().optional(),
+  ORCA_DB_READONLY: z.string().optional(),
+  ORCA_DB_FILE_MUST_EXIST: z.string().optional(),
+  
   ORCA_REDIS_URL: z.string().optional(),
   ORCA_PORT: z.string().default('3000'),
   ORCA_HOST: z.string().default('0.0.0.0'),
