@@ -6,6 +6,8 @@ const path = require('path');
 const Table = require('cli-table3');
 const enquirer = require('enquirer');
 const { getCircuitBreakerStatus, resetCircuitBreaker } = require('./core.js');
+const { installSkill, uninstallSkill, listInstalledSkills } = require('./plugins/marketplace.js');
+const { registry } = require('./plugins/registry.js');
 
 const agentsDataPath = path.join(__dirname, 'agents.json');
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
@@ -74,6 +76,21 @@ class CommandRegistry {
                 label: 'Smart Levels',
                 description: 'Toggle response depth [Instant|Thinking|Full]',
                 execute: () => this.toggleLevel()
+            },
+            '/install-skill': {
+                label: 'Install Skill',
+                description: 'Install a skill from GitHub URL or local path',
+                execute: (args) => this.installSkill(args)
+            },
+            '/uninstall-skill': {
+                label: 'Uninstall Skill',
+                description: 'Remove an installed skill',
+                execute: (args) => this.uninstallSkill(args)
+            },
+            '/list-skills': {
+                label: 'List Skills',
+                description: 'Show all installed skills and their status',
+                execute: () => this.listSkills()
             },
             '/exit': {
                 label: 'Exit',
@@ -347,6 +364,109 @@ class CommandRegistry {
                 log.success(chalk.green('Circuit breaker has been reset. System is now healthy.'));
             }
         }
+    }
+
+    async installSkill(args) {
+        const source = args.join(' ').trim();
+        
+        if (!source) {
+            log.error('Usage: /install-skill <url-or-path> [--force]');
+            log.info('Examples:');
+            log.info('  /install-skill https://github.com/user/orca-skills/tree/main/terminal');
+            log.info('  /install-skill ./my-local-skill');
+            return;
+        }
+        
+        const force = args.includes('--force');
+        const ignoreConflicts = args.includes('--ignore-conflicts');
+        const cleanSource = source.replace(/--force|--ignore-conflicts/g, '').trim();
+        
+        const s = spinner();
+        s.start(chalk.blue(`Installing skill from ${cleanSource}...`));
+        
+        try {
+            const result = await installSkill(cleanSource, {
+                force,
+                ignoreConflicts
+            });
+            
+            s.stop(chalk.green('✓ Skill installed'));
+            
+            console.log(boxen(
+                `${chalk.cyan('Name:')} ${result.name}\n` +
+                `${chalk.cyan('Version:')} ${result.version}\n` +
+                `${chalk.cyan('Path:')} ${result.path}\n` +
+                `${chalk.cyan('Permissions:')} ${result.permissions.join(', ')}`,
+                { padding: 1, borderColor: 'green', title: ' SKILL INSTALLED ', titleAlignment: 'center' }
+            ));
+            
+            if (result.conflicts) {
+                log.warn(`Dependency conflicts: ${result.conflicts.map(c => c.name).join(', ')}`);
+            }
+        } catch (error) {
+            s.stop(chalk.red('✗ Installation failed'));
+            log.error(error.message);
+            if (error.details?.hint) {
+                log.info(chalk.dim(error.details.hint));
+            }
+        }
+    }
+
+    async uninstallSkill(args) {
+        const name = args[0];
+        
+        if (!name) {
+            log.error('Usage: /uninstall-skill <name>');
+            return;
+        }
+        
+        const confirm = await new enquirer.Confirm({
+            message: `Are you sure you want to uninstall "${name}"?`
+        }).run();
+        
+        if (!confirm) {
+            log.info('Uninstall cancelled.');
+            return;
+        }
+        
+        try {
+            const result = await uninstallSkill(name);
+            log.success(chalk.green(`Skill "${result.name}" uninstalled successfully.`));
+        } catch (error) {
+            log.error(error.message);
+        }
+    }
+
+    async listSkills() {
+        const installed = listInstalledSkills();
+        const registered = registry.list();
+        
+        if (installed.length === 0) {
+            log.info('No skills installed.');
+            log.info('Use /install-skill to add skills.');
+            return;
+        }
+        
+        const table = new Table({
+            head: [chalk.cyan('Name'), chalk.cyan('Version'), chalk.cyan('Category'), chalk.cyan('Permissions'), chalk.cyan('Status')],
+            colWidths: [20, 10, 12, 25, 12]
+        });
+        
+        for (const skill of installed) {
+            const isLoaded = skill.loaded ? chalk.green('● Active') : chalk.yellow('○ Inactive');
+            const perms = (skill.permissions || []).join(', ');
+            table.push([
+                skill.name,
+                skill.version,
+                skill.category || 'custom',
+                perms || 'none',
+                isLoaded
+            ]);
+        }
+        
+        console.log('\n' + chalk.bold.blue('Installed Skills:'));
+        console.log(table.toString());
+        console.log(chalk.dim(`\nTotal: ${installed.length} installed, ${registered.length} active`));
     }
 }
 
