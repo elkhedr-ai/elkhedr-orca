@@ -15,6 +15,7 @@ const { compileWorkflowDefinition, loadFromFile, listDefinitions } = require('./
 const { registerBuiltInHandlers } = require('./workflows/handlers.js');
 const { validateCompiledWorkflow, getWorkflowSummary } = require('./workflows/validator.js');
 const { EventBus, getEventBus } = require('./events/bus.js');
+const { StreamingServer } = require('./server/websocket.js');
 
 const agentsDataPath = path.join(__dirname, 'agents.json');
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
@@ -173,6 +174,21 @@ class CommandRegistry {
                 label: 'Query Events',
                 description: 'Query events by type from the store',
                 execute: (args) => this.queryEvents(args)
+            },
+            '/stream-start': {
+                label: 'Start Streaming Server',
+                description: 'Start SSE/WebSocket streaming server',
+                execute: (args) => this.startStreamingServer(args)
+            },
+            '/stream-stop': {
+                label: 'Stop Streaming Server',
+                description: 'Stop the streaming server',
+                execute: () => this.stopStreamingServer()
+            },
+            '/stream-status': {
+                label: 'Stream Status',
+                description: 'Show streaming server status and connected clients',
+                execute: () => this.showStreamStatus()
             },
             '/exit': {
                 label: 'Exit',
@@ -1005,6 +1021,75 @@ class CommandRegistry {
         
         console.log(table.toString());
         log.info(`Showing last ${Math.min(events.length, 10)} of ${events.length} events.`);
+    }
+
+    async startStreamingServer(args) {
+        const port = args[0] ? parseInt(args[0], 10) : 3001;
+        
+        if (this.streamingServer && this.streamingServer.running) {
+            log.warn('Streaming server is already running.');
+            return;
+        }
+        
+        try {
+            this.streamingServer = new StreamingServer({ port });
+            this.streamingServer.start();
+            log.success(`Streaming server started on port ${port}.`);
+            log.info('Endpoints:');
+            log.info(`  SSE: http://localhost:${port}/events/stream`);
+            log.info(`  WebSocket: ws://localhost:${port}`);
+        } catch (error) {
+            log.error(`Failed to start streaming server: ${error.message}`);
+        }
+    }
+
+    async stopStreamingServer() {
+        if (!this.streamingServer || !this.streamingServer.running) {
+            log.warn('Streaming server is not running.');
+            return;
+        }
+        
+        this.streamingServer.stop();
+        this.streamingServer = null;
+        log.success('Streaming server stopped.');
+    }
+
+    async showStreamStatus() {
+        if (!this.streamingServer || !this.streamingServer.running) {
+            log.info('Streaming server is not running. Use /stream-start to start it.');
+            return;
+        }
+        
+        const status = this.streamingServer.getStatus();
+        const hubStats = status.hub;
+        
+        console.log(boxen(
+            `${chalk.bold.white('STREAMING SERVER')}\n\n` +
+            `${chalk.cyan('Status:')} ${chalk.green('Running')}\n` +
+            `${chalk.cyan('Address:')} ${status.address}\n` +
+            `${chalk.cyan('Total Clients:')} ${hubStats.totalClients}\n` +
+            `${chalk.cyan('SSE Clients:')} ${hubStats.sseClients}\n` +
+            `${chalk.cyan('WebSocket Clients:')} ${hubStats.wsClients}\n` +
+            `${chalk.cyan('Total Connections:')} ${hubStats.totalConnections}\n` +
+            `${chalk.cyan('Messages Sent:')} ${hubStats.messagesSent}\n` +
+            `${chalk.cyan('Bytes Sent:')} ${hubStats.bytesSent}`,
+            { padding: 1, borderColor: 'cyan', title: ' STREAM ', titleAlignment: 'center' }
+        ));
+        
+        if (hubStats.totalClients > 0) {
+            const clientTable = new Table({
+                head: [chalk.cyan('Client ID'), chalk.cyan('Type'), chalk.cyan('Duration')],
+                colWidths: [25, 12, 15]
+            });
+            
+            for (const client of this.streamingServer.hub.getClients()) {
+                const duration = Math.floor(client.duration / 1000);
+                clientTable.push([client.id, client.type, `${duration}s`]);
+            }
+            
+            console.log('\n' + chalk.bold('Connected Clients:'));
+            console.log(clientTable.toString());
+        }
     }
 }
 
