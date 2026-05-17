@@ -7,6 +7,7 @@ const { z } = require('zod');
 const { envSchema } = require('./schema.js');
 const { ConfigError } = require('../utils/errors.js');
 const path = require('path');
+const { subscribe, unsubscribe, startWatching } = require('./loader.js');
 
 // Load .env file
 require('dotenv').config({ 
@@ -78,9 +79,24 @@ function reloadConfig() {
   return loadConfig();
 }
 
+/**
+ * Start hot reload watching for config files
+ */
+function watchConfig(options = {}) {
+  return startWatching({
+    envPath: process.env.ORCA_CONFIG_PATH || path.join(__dirname, '../../.env'),
+    configPaths: options.configPaths || [],
+    reloadFn: reloadConfig,
+    getConfigFn: getConfig
+  });
+}
+
 module.exports = {
   loadConfig,
   getConfig,
   reloadConfig,
+  watchConfig,
+  subscribe,
+  unsubscribe,
   envSchema
 };

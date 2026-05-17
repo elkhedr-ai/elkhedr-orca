@@ -8,6 +8,7 @@ const enquirer = require('enquirer');
 const { getCircuitBreakerStatus, resetCircuitBreaker } = require('./core.js');
 const { installSkill, uninstallSkill, listInstalledSkills } = require('./plugins/marketplace.js');
 const { registry } = require('./plugins/registry.js');
+const { reloadConfig, getConfig, subscribe, unsubscribe } = require('./config/index.js');
 
 const agentsDataPath = path.join(__dirname, 'agents.json');
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
@@ -58,6 +59,11 @@ class CommandRegistry {
                 label: 'System Health',
                 description: 'Check circuit breaker and system health status',
                 execute: () => this.showHealth()
+            },
+            '/reload-config': {
+                label: 'Reload Config',
+                description: 'Reload configuration without restarting',
+                execute: () => this.reloadConfig()
             },
             '/clear': {
                 label: 'Clear Screen',
@@ -316,6 +322,32 @@ class CommandRegistry {
     checkProviders() {
         log.info(chalk.bold('Provider Connectivity:'));
         log.success(`OpenRouter: ${chalk.green('CONNECTED')} (Premium Tier)`);
+    }
+
+    async reloadConfig() {
+        const { log } = require('@clack/prompts');
+        
+        try {
+            const oldConfig = getConfig();
+            const newConfig = reloadConfig();
+            
+            const changes = [];
+            const allKeys = new Set([...Object.keys(oldConfig), ...Object.keys(newConfig)]);
+            for (const key of allKeys) {
+                if (JSON.stringify(oldConfig[key]) !== JSON.stringify(newConfig[key])) {
+                    changes.push(`${key}: ${JSON.stringify(oldConfig[key])} → ${JSON.stringify(newConfig[key])}`);
+                }
+            }
+            
+            if (changes.length === 0) {
+                log.info('Configuration reloaded. No changes detected.');
+            } else {
+                log.success(`Configuration reloaded. ${changes.length} change(s):`);
+                changes.forEach(c => console.log(`  ${c}`));
+            }
+        } catch (error) {
+            log.error(`Failed to reload config: ${error.message}`);
+        }
     }
 
     async showHealth() {
