@@ -10,6 +10,7 @@ const { installSkill, uninstallSkill, listInstalledSkills } = require('./plugins
 const { registry } = require('./plugins/registry.js');
 const { reloadConfig, getConfig, subscribe, unsubscribe } = require('./config/index.js');
 const { approveSkill, revokeApproval, getApprovalStatus, getElevatedPermissions } = require('./plugins/permissions.js');
+const { TaskQueue } = require('./queue/index.js');
 
 const agentsDataPath = path.join(__dirname, 'agents.json');
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
@@ -108,6 +109,11 @@ class CommandRegistry {
                 label: 'Revoke Skill Permissions',
                 description: 'Revoke permissions from a skill',
                 execute: (args) => this.revokeSkill(args)
+            },
+            '/queue-status': {
+                label: 'Queue Status',
+                description: 'Show task queue statistics and job counts',
+                execute: () => this.showQueueStatus()
             },
             '/exit': {
                 label: 'Exit',
@@ -574,6 +580,31 @@ class CommandRegistry {
         
         revokeApproval(name);
         log.success(`Permissions revoked for "${name}".`);
+    }
+
+    async showQueueStatus() {
+        const { TaskQueue } = require('./queue/index.js');
+        const queue = new TaskQueue('orca');
+        const stats = queue.getStats();
+        
+        console.log(boxen(
+            `${chalk.bold.white('TASK QUEUE STATUS')}\n\n` +
+            `${chalk.cyan('Queue Name:')} ${stats.name}\n` +
+            `${chalk.cyan('Pending:')} ${stats.pending}\n` +
+            `${chalk.cyan('Delayed:')} ${stats.delayed}\n` +
+            `${chalk.cyan('Active:')} ${stats.active}\n` +
+            `${chalk.cyan('Completed:')} ${stats.completed}\n` +
+            `${chalk.cyan('Failed:')} ${stats.failed}\n` +
+            `${chalk.cyan('Dead Letter Queue:')} ${stats.dead}\n` +
+            `${chalk.cyan('Total Jobs:')} ${stats.total}\n` +
+            `${chalk.cyan('Concurrency:')} ${stats.concurrency}\n` +
+            `${chalk.cyan('Active Workers:')} ${stats.activeWorkers}`,
+            { padding: 1, borderColor: 'cyan', title: ' QUEUE ', titleAlignment: 'center' }
+        ));
+        
+        if (stats.dead > 0) {
+            log.warn(`${stats.dead} job(s) in dead letter queue. Use queue.retry() to retry.`);
+        }
     }
 }
 
