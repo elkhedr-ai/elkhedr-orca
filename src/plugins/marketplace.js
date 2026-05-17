@@ -11,6 +11,7 @@ const { logger } = require('../utils/logger.js');
 const { ValidationError } = require('../utils/errors.js');
 const { registry } = require('./registry.js');
 const { loadSkillFromDirectory } = require('./loader.js');
+const { validatePermissions, getElevatedPermissions } = require('./permissions.js');
 
 const execAsync = promisify(exec);
 
@@ -270,6 +271,26 @@ async function installSkill(source, options = {}) {
   }
   
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  
+  // Validate declared permissions
+  try {
+    validatePermissions(manifest.permissions || []);
+  } catch (error) {
+    fs.rmSync(targetDir, { recursive: true, force: true });
+    throw new ValidationError(
+      `Invalid permissions in skill manifest: ${error.message}`,
+      { hint: 'Check manifest.json permissions array' }
+    );
+  }
+  
+  // Warn about elevated permissions
+  const elevated = getElevatedPermissions(manifest.permissions || []);
+  if (elevated.length > 0) {
+    logger.warn({
+      skill: manifest.name,
+      elevated
+    }, 'Skill requires elevated permissions - will need explicit approval before execution');
+  }
   
   // Check dependencies
   const conflicts = checkDependencies(manifest);

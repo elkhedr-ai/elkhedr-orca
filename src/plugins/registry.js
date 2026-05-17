@@ -5,6 +5,7 @@
 const { skillManifestSchema } = require('./schema.js');
 const { ValidationError } = require('../utils/errors.js');
 const { logger } = require('../utils/logger.js');
+const { checkExecutionPermission, reset: resetPermissions } = require('./permissions.js');
 
 class SkillRegistry {
   constructor() {
@@ -105,15 +106,23 @@ class SkillRegistry {
 
   /**
    * Execute a skill by name
+   * @param {string} name - Skill name
+   * @param {Object} args - Execution arguments
+   * @param {Object} options - Execution options
+   * @param {boolean} options.autoApprove - Auto-approve elevated permissions
    */
-  async execute(name, args) {
+  async execute(name, args, options = {}) {
     const skill = this.get(name);
     if (!skill) {
       throw new ValidationError(`Skill "${name}" not found`);
     }
 
     const manifest = this.getManifest(name);
-    logger.info({ skill: name, args }, 'Executing skill');
+    
+    // Check permissions before execution
+    checkExecutionPermission(name, manifest.permissions || [], options);
+    
+    logger.info({ skill: name, args, permissions: manifest.permissions }, 'Executing skill');
     
     return await skill.execute(args);
   }
@@ -134,6 +143,7 @@ class SkillRegistry {
   reset() {
     this.skills.clear();
     this.manifests.clear();
+    resetPermissions();
   }
 }
 

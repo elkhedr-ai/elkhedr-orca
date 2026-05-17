@@ -9,6 +9,7 @@ const { getCircuitBreakerStatus, resetCircuitBreaker } = require('./core.js');
 const { installSkill, uninstallSkill, listInstalledSkills } = require('./plugins/marketplace.js');
 const { registry } = require('./plugins/registry.js');
 const { reloadConfig, getConfig, subscribe, unsubscribe } = require('./config/index.js');
+const { approveSkill, revokeApproval, getApprovalStatus, getElevatedPermissions } = require('./plugins/permissions.js');
 
 const agentsDataPath = path.join(__dirname, 'agents.json');
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
@@ -97,6 +98,16 @@ class CommandRegistry {
                 label: 'List Skills',
                 description: 'Show all installed skills and their status',
                 execute: () => this.listSkills()
+            },
+            '/approve-skill': {
+                label: 'Approve Skill Permissions',
+                description: 'Grant elevated permissions to a skill',
+                execute: (args) => this.approveSkill(args)
+            },
+            '/revoke-skill': {
+                label: 'Revoke Skill Permissions',
+                description: 'Revoke permissions from a skill',
+                execute: (args) => this.revokeSkill(args)
             },
             '/exit': {
                 label: 'Exit',
@@ -499,6 +510,70 @@ class CommandRegistry {
         console.log('\n' + chalk.bold.blue('Installed Skills:'));
         console.log(table.toString());
         console.log(chalk.dim(`\nTotal: ${installed.length} installed, ${registered.length} active`));
+    }
+
+    async approveSkill(args) {
+        const name = args[0];
+        
+        if (!name) {
+            log.error('Usage: /approve-skill <skill-name>');
+            return;
+        }
+        
+        const manifest = registry.getManifest(name);
+        if (!manifest) {
+            log.error(`Skill "${name}" not found in registry.`);
+            return;
+        }
+        
+        const elevated = getElevatedPermissions(manifest.permissions || []);
+        
+        if (elevated.length === 0) {
+            log.info(`Skill "${name}" does not require elevated permissions.`);
+            return;
+        }
+        
+        const confirm = await new enquirer.Confirm({
+            message: `Approve ${elevated.join(', ')} permissions for "${name}"?`
+        }).run();
+        
+        if (!confirm) {
+            log.info('Approval cancelled.');
+            return;
+        }
+        
+        try {
+            const result = approveSkill(name, elevated, { approvedBy: 'user' });
+            log.success(`Approved ${result.permissions.length} permission(s) for "${result.skillName}".`);
+        } catch (error) {
+            log.error(error.message);
+        }
+    }
+
+    async revokeSkill(args) {
+        const name = args[0];
+        
+        if (!name) {
+            log.error('Usage: /revoke-skill <skill-name>');
+            return;
+        }
+        
+        if (!registry.has(name)) {
+            log.error(`Skill "${name}" not found in registry.`);
+            return;
+        }
+        
+        const confirm = await new enquirer.Confirm({
+            message: `Revoke all permissions for "${name}"?`
+        }).run();
+        
+        if (!confirm) {
+            log.info('Revocation cancelled.');
+            return;
+        }
+        
+        revokeApproval(name);
+        log.success(`Permissions revoked for "${name}".`);
     }
 }
 

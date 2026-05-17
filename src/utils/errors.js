@@ -62,6 +62,12 @@ class AgentError extends OrcaError {
   }
 }
 
+class AuthorizationError extends OrcaError {
+  constructor(message, details = {}) {
+    super(message, 'AUTHZ_ERROR', 403, details);
+  }
+}
+
 module.exports = {
   OrcaError,
   APIError,
@@ -69,5 +75,6 @@ module.exports = {
   AuthenticationError,
   ConfigError,
   ToolExecutionError,
-  AgentError
+  AgentError,
+  AuthorizationError
 };
