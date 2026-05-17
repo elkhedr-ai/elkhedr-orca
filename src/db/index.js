@@ -185,6 +185,104 @@ class DatabaseManager {
       `INSERT INTO costs (task_id, tokens, cost) VALUES (?, ?, ?)`,
       [taskId, tokens, cost]
     );
+    
+    // Also update aggregate tables
+    await this.updateAnalyticsAggregates(tokens, cost);
+  }
+
+  /**
+   * Update analytics aggregate tables
+   */
+  async updateAnalyticsAggregates(tokens, cost) {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // 1-12
+    
+    // Calculate ISO week
+    const week = this.getISOWeek(now);
+    
+    // Update daily aggregates
+    await this.adapter.execute(`
+      INSERT INTO analytics_daily (date, total_operations, total_tokens, total_cost, agent_usage)
+      VALUES (?, 1, ?, ?, '{}')
+      ON CONFLICT(date) DO UPDATE SET
+        total_operations = total_operations + 1,
+        total_tokens = total_tokens + ?,
+        total_cost = total_cost + ?,
+        updated_at = CURRENT_TIMESTAMP
+    `, [dateStr, tokens, cost, tokens, cost]);
+    
+    // Update weekly aggregates
+    await this.adapter.execute(`
+      INSERT INTO analytics_weekly (year, week, total_operations, total_tokens, total_cost, agent_usage)
+      VALUES (?, ?, 1, ?, ?, '{}')
+      ON CONFLICT(year, week) DO UPDATE SET
+        total_operations = total_operations + 1,
+        total_tokens = total_tokens + ?,
+        total_cost = total_cost + ?,
+        updated_at = CURRENT_TIMESTAMP
+    `, [year, week, tokens, cost, tokens, cost]);
+    
+    // Update monthly aggregates
+    await this.adapter.execute(`
+      INSERT INTO analytics_monthly (year, month, total_operations, total_tokens, total_cost, agent_usage)
+      VALUES (?, ?, 1, ?, ?, '{}')
+      ON CONFLICT(year, month) DO UPDATE SET
+        total_operations = total_operations + 1,
+        total_tokens = total_tokens + ?,
+        total_cost = total_cost + ?,
+        updated_at = CURRENT_TIMESTAMP
+    `, [year, month, tokens, cost, tokens, cost]);
+  }
+
+  /**
+   * Calculate ISO week number
+   */
+  getISOWeek(date) {
+    const target = new Date(date.valueOf());
+    const dayNr = (date.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNr + 3);
+    const jan4 = new Date(target.getFullYear(), 0, 4);
+    const dayDiff = (target - jan4) / 86400000;
+    const weekNr = 1 + Math.ceil(dayDiff / 7);
+    return weekNr;
+  }
+
+  /**
+   * Get daily analytics
+   */
+  async getDailyAnalytics(limit = 30) {
+    const rows = await this.adapter.query(`
+      SELECT * FROM analytics_daily 
+      ORDER BY date DESC 
+      LIMIT ?
+    `, [limit]);
+    return rows;
+  }
+
+  /**
+   * Get weekly analytics
+   */
+  async getWeeklyAnalytics(limit = 12) {
+    const rows = await this.adapter.query(`
+      SELECT * FROM analytics_weekly 
+      ORDER BY year DESC, week DESC 
+      LIMIT ?
+    `, [limit]);
+    return rows;
+  }
+
+  /**
+   * Get monthly analytics
+   */
+  async getMonthlyAnalytics(limit = 12) {
+    const rows = await this.adapter.query(`
+      SELECT * FROM analytics_monthly 
+      ORDER BY year DESC, month DESC 
+      LIMIT ?
+    `, [limit]);
+    return rows;
   }
 
   // ==================== Session Methods ====================
