@@ -48,6 +48,7 @@ const skillManifestSchema = z.object({
     'file',
     'data',
     'communication',
+    'media',
     'custom'
   ]).default('custom')
 });

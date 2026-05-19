@@ -43,6 +43,11 @@ class CommandRegistry {
                 description: 'Configure providers and model assignments',
                 execute: () => this.manageModels()
             },
+            '/local-models': {
+                label: 'Local Models',
+                description: 'View and manage Ollama/LM Studio local models',
+                execute: () => this.manageLocalModels()
+            },
             '/sessions': {
                 label: 'Session History',
                 description: 'View real history of previous task results',
@@ -293,18 +298,85 @@ class CommandRegistry {
     }
 
     async manageModels() {
+        const { getLocalModelClient } = require('./models/local.js');
+        const localClient = getLocalModelClient();
+        const availability = await localClient.isAvailable();
+
         log.info(chalk.bold('Provider Configuration:'));
         log.success('1. OpenRouter (PRIMARY) - Connected');
         log.info('2. OpenAI - Configurable in .env');
         log.info('3. Anthropic - Configurable in .env');
-        
+        if (availability.ollama) {
+            log.success(`4. Ollama (LOCAL) - Connected`);
+        } else {
+            log.info('4. Ollama (LOCAL) - Not available');
+        }
+        if (availability.lmstudio) {
+            log.success(`5. LM Studio (LOCAL) - Connected`);
+        } else {
+            log.info('5. LM Studio (LOCAL) - Not available');
+        }
+
         const action = await new enquirer.Select({
             message: 'Model Controls',
-            choices: ['View Agent Mappings', 'Check Latency', 'Back']
+            choices: ['View Agent Mappings', 'Check Latency', 'Local Models', 'Back']
         }).run();
 
         if (action === 'View Agent Mappings') {
             this.listAgents();
+        } else if (action === 'Local Models') {
+            this.manageLocalModels();
+        }
+    }
+
+    async manageLocalModels() {
+        const { getLocalModelClient } = require('./models/local.js');
+        const localClient = getLocalModelClient();
+        const availability = await localClient.isAvailable();
+
+        log.info(chalk.bold('Local Model Status:'));
+        log.info(`Ollama: ${availability.ollama ? chalk.green('Connected') : chalk.red('Not available')}`);
+        log.info(`LM Studio: ${availability.lmstudio ? chalk.green('Connected') : chalk.red('Not available')}`);
+
+        if (!availability.any) {
+            log.warn('No local model providers detected. Start Ollama or LM Studio and try again.');
+            return;
+        }
+
+        const models = await localClient.listModels();
+        if (models.length === 0) {
+            log.warn('No local models found. Pull a model with Ollama first.');
+            return;
+        }
+
+        const table = new Table({
+            head: [chalk.cyan('ID'), chalk.cyan('Name'), chalk.cyan('Type'), chalk.cyan('Provider')],
+            colWidths: [25, 25, 12, 12]
+        });
+
+        for (const m of models) {
+            table.push([m.id, m.name, m.type, m.provider]);
+        }
+
+        console.log('\n' + table.toString());
+
+        const action = await new enquirer.Select({
+            message: 'Local Model Actions',
+            choices: ['Benchmark (Local vs Cloud)', 'Refresh', 'Back']
+        }).run();
+
+        if (action === 'Benchmark (Local vs Cloud)') {
+            log.info('Running benchmark...');
+            const results = await localClient.benchmark();
+            if (results.local) {
+                log.info(`Local: ${results.local.available ? `${results.local.latency}ms` : results.local.error}`);
+            }
+            if (results.cloud) {
+                log.info(`Cloud: ${results.cloud.available ? `${results.cloud.latency}ms` : results.cloud.error}`);
+            }
+        } else if (action === 'Refresh') {
+            const count = await localClient.listModels();
+            log.success(`Refreshed: ${count.length} local models found`);
         }
     }
 

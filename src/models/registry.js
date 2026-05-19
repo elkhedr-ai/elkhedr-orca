@@ -457,6 +457,51 @@ class ModelRegistry {
     this.healthMonitor.stop();
   }
 
+  /**
+   * Discover and register models from local providers (Ollama/LM Studio)
+   */
+  async discoverLocalModels(localClient) {
+    if (!localClient) return 0;
+
+    try {
+      const models = await localClient.listModels();
+      let count = 0;
+
+      for (const model of models) {
+        this.registerModel({
+          id: model.id,
+          name: model.name,
+          provider: 'local',
+          model: model.name,
+          endpoint: model.endpoint,
+          costPer1kTokens: 0,
+          qualityScore: 6.8,
+          maxTokens: 8192,
+          source: 'local-discovery',
+          health: {
+            status: HEALTH_STATUS.HEALTHY,
+            lastCheck: new Date().toISOString(),
+            latency: null
+          }
+        }, { replace: true });
+        count++;
+      }
+
+      logger.info({ count }, 'Local models discovered and registered');
+      return count;
+    } catch (error) {
+      logger.warn({ error: error.message }, 'Local model discovery failed');
+      return 0;
+    }
+  }
+
+  /**
+   * Get all models with provider === 'local'
+   */
+  getLocalModels() {
+    return this.getAllModels().filter(m => m.provider === 'local');
+  }
+
   recordModelSuccess(idOrModel, usage = {}) {
     const model = this.ensureModel(idOrModel);
     if (!model) return null;

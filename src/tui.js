@@ -42,7 +42,8 @@ let sessionStats = {
     sandbox: true,
     lastModel: 'N/A',
     currentAgent: null,
-    level: 'Auto'
+    level: 'Auto',
+    activeProvider: 'cloud'
 };
 
 // Input history for up/down arrow support
@@ -119,10 +120,15 @@ function renderStatusBar() {
         ? chalk.bgBlue.white(` 🤖 DIRECT: ${sessionStats.currentAgent.role.toUpperCase()} `)
         : chalk.bgCyan.black(` ${icon} MODE: ${sessionStats.level.toUpperCase()} `);
 
+    const providerIndicator = sessionStats.activeProvider === 'local'
+        ? chalk.green('🏠 LOCAL')
+        : chalk.blue('☁️ CLOUD');
+
     const stats = [
         chalk.cyan(`💰 $${sessionStats.estimatedCost.toFixed(5)}`),
         chalk.blue(`🧵 Threads: ${sessionStats.activeAgents}`),
         chalk.yellow(`⚙️ Tasks: ${sessionStats.totalTasks}`),
+        providerIndicator,
         sandboxStatus
     ].join('  |  ');
 
@@ -294,6 +300,8 @@ async function interactiveSession() {
                         }
                         if (event.type === 'agent_start') {
                             sessionStats.lastModel = event.agent;
+                            sessionStats.activeProvider = (event.agent && (event.agent.startsWith('ollama-') || event.agent.startsWith('lmstudio-')))
+                                ? 'local' : 'cloud';
                             s.message(chalk.white(`[${chalk.blue(event.agent)}] `) + chalk.dim(event.task));
                         } else if (event.type === 'status') {
                             s.message(chalk.yellow(event.message));

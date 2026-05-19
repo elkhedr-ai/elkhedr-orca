@@ -49,6 +49,12 @@ const envSchema = z.object({
   ORCA_MODEL_LATENCY_BUDGET_MS: z.string().default('30000'),
   ORCA_MODEL_FAILURE_THRESHOLD: z.string().default('1'),
 
+  // Local model servers (Ollama / LM Studio)
+  OLLAMA_URL: z.string().optional(),
+  LMSTUDIO_URL: z.string().optional(),
+  ORCA_LOCAL_MODEL_ENABLED: z.string().default('false'),
+  ORCA_LOCAL_MODEL_PRIORITY: z.enum(['local-first', 'cloud-first', 'cost-optimal']).default('local-first'),
+
   // RAG / vector search
   ORCA_RAG_ENABLED: z.string().default('true'),
   ORCA_EMBEDDING_MODEL: z.string().default('local-hashing-v1'),

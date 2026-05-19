@@ -1,0 +1,9 @@
+{
+  "name": "vision",
+  "version": "1.0.0",
+  "description": "Analyze images using vision-capable AI models. Supports local files and URLs. Returns text descriptions and analysis of image content.",
+  "author": "Elkhedr Orca",
+  "permissions": ["network", "filesystem"],
+  "category": "media",
+  "entryPoint": "index.js"
+}

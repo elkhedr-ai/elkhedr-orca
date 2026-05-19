@@ -28,6 +28,7 @@ const { getOrCreateSession, updateSession } = require('./session/manager');
 const { getUserContext } = require('./auth/context');
 const { queryWithRag, extractCitations } = require('./rag/prompts.js');
 const { getModelRegistry } = require('./models/registry.js');
+const { getLocalModelClient } = require('./models/local.js');
 
 // Load and validate configuration on module initialization
 loadConfig();
@@ -62,6 +63,45 @@ if (!OPENROUTER_API_KEY) {
   throw new ConfigError('OPENROUTER_API_KEY is missing. Please create a .env file with your API key.', {
     envVar: 'OPENROUTER_API_KEY',
     solution: 'Create .env file with OPENROUTER_API_KEY=your_key_here'
+  });
+}
+
+// Local model support
+const LOCAL_MODEL_ENABLED = String(config.ORCA_LOCAL_MODEL_ENABLED || 'false').toLowerCase() === 'true';
+const LOCAL_MODEL_PRIORITY = config.ORCA_LOCAL_MODEL_PRIORITY || 'local-first';
+let _localClient = null;
+
+function getLocalClient() {
+  if (!_localClient) {
+    _localClient = getLocalModelClient();
+  }
+  return _localClient;
+}
+
+// Auto-discover local models on startup if enabled
+if (LOCAL_MODEL_ENABLED) {
+  const localClient = getLocalClient();
+  const registry = getModelRegistry();
+  localClient.listModels().then(models => {
+    for (const model of models) {
+      registry.registerModel({
+        id: model.id,
+        name: model.name,
+        provider: 'local',
+        model: model.name,
+        endpoint: model.endpoint,
+        costPer1kTokens: 0,
+        qualityScore: 6.8,
+        maxTokens: 8192,
+        source: 'local-discovery',
+        health: { status: 'healthy', lastCheck: new Date().toISOString(), latency: null }
+      }, { replace: true });
+    }
+    if (models.length > 0) {
+      logger.info({ count: models.length }, 'Local models auto-discovered on startup');
+    }
+  }).catch(err => {
+    logger.warn({ error: err.message }, 'Local model auto-discovery failed on startup');
   });
 }
 
@@ -266,8 +306,13 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
     });
   }
 
+  // Build fallback chain with local-first priority if enabled
+  const localModels = LOCAL_MODEL_ENABLED && LOCAL_MODEL_PRIORITY === 'local-first'
+    ? modelRegistry.getLocalModels()
+    : [];
   const modelAttempts = modelRegistry.buildFallbackChain({
-    preferredModel: model,
+    preferredModel: localModels.length > 0 ? localModels[0].model : model,
+    fallbackModels: localModels.length > 0 ? [model, ...(localModels.slice(1).map(m => m.model))] : [],
     fallbackModel,
     universalFallback: UNIVERSAL_FALLBACK
   });
@@ -277,10 +322,32 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
   const tryCall = async (targetModel) => {
     log.info({ targetModel }, 'Attempting API call');
     const startedAt = Date.now();
-    
+
     try {
       payload.model = targetModel;
-      
+
+      // Check if this is a local model — dispatch to LocalModelClient
+      const modelConfig = modelRegistry.getModel(targetModel);
+      if (modelConfig && modelConfig.provider === 'local' && LOCAL_MODEL_ENABLED) {
+        log.info({ targetModel, type: modelConfig.type || 'local' }, 'Dispatching to local model');
+        const localClient = getLocalClient();
+        const localResult = await localClient.generate(
+          modelConfig,
+          messages.filter(m => m.role !== 'system').map(m => ({ role: m.role, content: m.content })),
+          { maxTokens: 2048 }
+        );
+        const tokens = (localResult.prompt_eval_count || 0) + (localResult.eval_count || 0) ||
+          localResult.usage?.total_tokens || 0;
+        const latency = Date.now() - startedAt;
+        log.info({ tokens, latency }, 'Local model call successful');
+        return {
+          content: localResult.text,
+          usage: { total_tokens: tokens },
+          model: targetModel,
+          latency
+        };
+      }
+
       // Wrap API call with circuit breaker protection
       const response = await openRouterCircuitBreaker.execute(async () => {
         return await withRetry(

@@ -1,0 +1,9 @@
+{
+  "name": "audio",
+  "version": "1.0.0",
+  "description": "Transcribe audio files using speech-to-text models. Supports local files and URLs. Returns transcript text.",
+  "author": "Elkhedr Orca",
+  "permissions": ["network", "filesystem"],
+  "category": "media",
+  "entryPoint": "index.js"
+}

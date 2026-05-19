@@ -13,7 +13,7 @@ const knowledgeBaseSkill = require('./skills/knowledge-base.js');
 
 // Initialize plugin system on first require
 let initialized = false;
-const DEFAULT_DIRECTORY_SKILLS = ['terminal', 'url-fetch', 'web-search'];
+const DEFAULT_DIRECTORY_SKILLS = ['terminal', 'url-fetch', 'web-search', 'vision', 'audio'];
 
 function init() {
   if (!initialized) {

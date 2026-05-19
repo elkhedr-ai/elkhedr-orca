@@ -71,6 +71,24 @@ const configFileSchema = z.object({
   models: z.record(z.string()).optional()
 });
 
+// Image analysis schema
+const imageAnalysisSchema = z.object({
+  image_path: z.string().optional(),
+  image_url: z.string().url().optional(),
+  prompt: z.string().min(1).max(2000)
+}).refine(data => data.image_path || data.image_url, {
+  message: 'Either image_path or image_url is required'
+});
+
+// Audio transcription schema
+const audioTranscribeSchema = z.object({
+  audio_path: z.string().optional(),
+  audio_url: z.string().url().optional(),
+  language: z.string().max(10).optional()
+}).refine(data => data.audio_path || data.audio_url, {
+  message: 'Either audio_path or audio_url is required'
+});
+
 module.exports = {
   promptSchema,
   agentSchema,
@@ -79,5 +97,7 @@ module.exports = {
   executeTerminalSchema,
   webSearchSchema,
   fetchUrlSchema,
-  configFileSchema
+  configFileSchema,
+  imageAnalysisSchema,
+  audioTranscribeSchema
 };
