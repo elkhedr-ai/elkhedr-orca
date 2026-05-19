@@ -1,5 +1,42 @@
 # Progress Log — elkhedr-orca
 
+## 2026-05-20 — Production Readiness Hardening
+
+### Security & Secrets
+- **`.gitignore` hardened** — Added `.env.production`, `.env.staging`, `data/orca.db`, `data/orca.db-shm`, `data/orca.db-wal`, `backups/` to prevent accidental secret/data leaks
+- **`data/orca.db` untracked** — Removed from git index (was previously committed); local copy preserved
+- **`.env.production` never committed** — Verified not in git tracking; contains JWT_SECRET, MASTER_KEY, OPENROUTER_API_KEY
+- **`.env.example` updated** — Added `ORCA_MASTER_KEY` placeholder for encryption key
+
+### Production Config
+- **`.env.production` finalized** — Added `NODE_ENV=production`, `ORCA_MASTER_KEY` (generated via `openssl rand -hex 32`)
+
+### Admin Registration
+- **`scripts/register-admin.js`** — CLI script to register first admin user
+  - Reads credentials from env vars (`ORCA_ADMIN_USER`, `ORCA_ADMIN_EMAIL`, `ORCA_ADMIN_PASS`) or prompts interactively
+  - Password input is masked in terminal
+  - Uses existing `registerUser()` from `src/auth/index.js`
+  - npm script: `npm run admin:register`
+
+### Automated Backups
+- **`scripts/setup-backup-cron.sh`** — Installs daily backup cron job
+  - Default: 3 AM daily, configurable via `--schedule`
+  - Loads `.env.production` in cron context
+  - Logs to `logs/backup.log`
+  - Uninstall: `--uninstall` flag
+  - npm script: `npm run db:backup:cron`
+- Existing `scripts/backup.sh` and `scripts/restore.sh` unchanged (already complete)
+
+### Files Changed
+- `.gitignore` — Security hardening
+- `.env.example` — Added ORCA_MASTER_KEY
+- `.env.production` — Added NODE_ENV, ORCA_MASTER_KEY
+- `package.json` — Added `admin:register`, `db:backup:cron` scripts
+- `scripts/register-admin.js` — New: admin registration CLI
+- `scripts/setup-backup-cron.sh` — New: cron installer
+
+---
+
 ## 2026-05-19 — T44 Local Model Support & T45 Image & Audio Processing
 
 ### T44: Local Model Support (Completed)

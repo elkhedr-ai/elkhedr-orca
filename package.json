@@ -27,6 +27,8 @@
     "db:backup": "bash scripts/backup.sh",
     "db:restore": "bash scripts/restore.sh",
     "db:backup:list": "ls -lh backups/db/ 2>/dev/null || echo 'No backups found'",
+    "db:backup:cron": "bash scripts/setup-backup-cron.sh",
+    "admin:register": "node scripts/register-admin.js",
     "test:load": "bash tests/load/run.sh smoke",
     "test:load:full": "bash tests/load/run.sh full",
     "test:benchmark": "node tests/load/benchmark.js"

@@ -1,6 +1,8 @@
 # Environment variables (SENSITIVE)
 .env
 .env.local
+.env.production
+.env.staging
 .env.*.local
 
 # Node.js
@@ -20,3 +22,11 @@ coverage/
 .gemini/
 .claude/
 logs/
+
+# SQLite runtime data (schema in git, actual data is not)
+data/orca.db
+data/orca.db-shm
+data/orca.db-wal
+
+# Backup archives
+backups/
