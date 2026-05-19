@@ -201,6 +201,31 @@ class CommandRegistry {
                 description: 'Execute a task using parallel agent swarm with automated decomposition',
                 execute: (args) => this.executeSwarm(args)
             },
+            '/create-agent': {
+                label: 'Create Agent',
+                description: 'Create a custom agent from a template or from scratch',
+                execute: () => this.createCustomAgent()
+            },
+            '/list-custom-agents': {
+                label: 'List Custom Agents',
+                description: 'List all custom agents with details',
+                execute: () => this.listCustomAgents()
+            },
+            '/delete-agent': {
+                label: 'Delete Agent',
+                description: 'Delete a custom agent by ID',
+                execute: (args) => this.deleteCustomAgent(args)
+            },
+            '/export-agent': {
+                label: 'Export Agent',
+                description: 'Export a custom agent as a portable JSON definition',
+                execute: (args) => this.exportCustomAgent(args)
+            },
+            '/import-agent': {
+                label: 'Import Agent',
+                description: 'Import a custom agent from a JSON file or inline definition',
+                execute: (args) => this.importCustomAgent(args)
+            },
             '/exit': {
                 label: 'Exit',
                 description: 'Terminate the Orca session',
@@ -1234,6 +1259,245 @@ class CommandRegistry {
             
             console.log('\n' + chalk.bold('Connected Clients:'));
             console.log(clientTable.toString());
+        }
+    }
+
+    // ---- Custom Agent Commands ----
+
+    async createCustomAgent() {
+        const { getCustomAgentManager, AGENT_TEMPLATES } = require('./agents/custom.js');
+        const manager = getCustomAgentManager();
+
+        // Ask: from template or scratch
+        const sourceChoice = await new enquirer.Select({
+            name: 'source',
+            message: 'Create agent from:',
+            choices: [
+                { name: 'template', message: '📋 Start from a template' },
+                { name: 'scratch', message: '✨ Create from scratch' }
+            ]
+        }).run();
+
+        let config = {};
+
+        if (sourceChoice === 'template') {
+            const templates = manager.getTemplates();
+            const templateChoice = await new enquirer.Select({
+                name: 'template',
+                message: 'Select a template to start from:',
+                choices: templates.map(t => ({
+                    name: t.id,
+                    message: `${t.name} (${chalk.dim(t.category)})`
+                }))
+            }).run();
+
+            const template = templates.find(t => t.id === templateChoice);
+            if (!template) { log.error('Template not found'); return; }
+
+            config = {
+                name: template.name,
+                role: template.role,
+                model: template.model,
+                fallbackModel: template.fallbackModel,
+                department: template.department,
+                prompt: template.prompt,
+                tools: template.tools,
+                tags: [...template.tags]
+            };
+
+            log.info(`Starting from template: ${chalk.bold(template.name)}`);
+
+            // Optional: customize name
+            const nameInput = await new enquirer.Input({
+                message: 'Custom name (or press enter to use template name):',
+                initial: template.name
+            }).run();
+            if (nameInput) config.name = nameInput;
+        } else {
+            const nameInput = await new enquirer.Input({
+                message: 'Agent name:',
+                validate: v => v ? true : 'Name is required'
+            }).run();
+            config.name = nameInput;
+
+            const roleInput = await new enquirer.Input({
+                message: 'Agent role:',
+                initial: nameInput
+            }).run();
+            config.role = roleInput || nameInput;
+
+            const deptChoice = await new enquirer.Select({
+                name: 'department',
+                message: 'Department:',
+                choices: ['Engineering', 'Creative', 'Marketing', 'Sales', 'Operations']
+            }).run();
+            config.department = deptChoice;
+
+            const modelInput = await new enquirer.Input({
+                message: 'Model (or press enter for default):',
+                initial: 'google/gemma-4-26b-a4b-it'
+            }).run();
+            config.model = modelInput || 'google/gemma-4-26b-a4b-it';
+
+            const promptInput = await new enquirer.Input({
+                message: 'System prompt / role description:'
+            }).run();
+            config.prompt = promptInput || '';
+        }
+
+        const agent = manager.createAgent(config);
+        log.success(`Created custom agent: ${chalk.bold(agent.role)} (ID: ${agent.id})`);
+
+        console.log(boxen(
+            `${chalk.cyan('ID:')} ${agent.id}\n` +
+            `${chalk.cyan('Name:')} ${agent.name || agent.role}\n` +
+            `${chalk.cyan('Department:')} ${agent.department}\n` +
+            `${chalk.cyan('Model:')} ${agent.model}\n` +
+            `${chalk.cyan('Tools:')} ${(agent.tools || []).join(', ') || 'none'}`,
+            { padding: 1, borderColor: 'green', title: ' AGENT CREATED ' }
+        ));
+    }
+
+    async listCustomAgents() {
+        const { getCustomAgentManager } = require('./agents/custom.js');
+        const manager = getCustomAgentManager();
+        const agents = manager.listAgents();
+
+        if (agents.length === 0) {
+            log.info('No custom agents created yet. Use /create-agent to add one.');
+            return;
+        }
+
+        const table = new Table({
+            head: ['ID', 'Name', 'Department', 'Model', 'Tools', 'Tags'],
+            colWidths: [8, 22, 16, 36, 20, 20]
+        });
+
+        for (const agent of agents) {
+            table.push([
+                agent.id,
+                agent.role,
+                agent.department,
+                agent.model,
+                (agent.tools || []).join(', ') || '-',
+                (agent.tags || []).join(', ') || '-'
+            ]);
+        }
+
+        console.log('\n' + chalk.bold.cyan('Custom Agents:'));
+        console.log(table.toString());
+        console.log(chalk.dim(`Total: ${agents.length} custom agents\n`));
+    }
+
+    async deleteCustomAgent(args) {
+        const agentId = args[0];
+        if (!agentId) {
+            log.error('Usage: /delete-agent <agent_id>');
+            return;
+        }
+
+        const { getCustomAgentManager } = require('./agents/custom.js');
+        const manager = getCustomAgentManager();
+        const id = parseInt(agentId, 10);
+
+        // Confirm
+        const agent = manager.getAgent(id);
+        if (!agent) {
+            log.error(`Custom agent with ID ${id} not found.`);
+            return;
+        }
+
+        const confirm = await new enquirer.Select({
+            name: 'confirm',
+            message: `Delete agent "${agent.role}" (ID: ${id})?`,
+            choices: [
+                { name: 'yes', message: 'Yes, delete it' },
+                { name: 'no', message: 'Cancel' }
+            ]
+        }).run();
+
+        if (confirm !== 'yes') {
+            log.info('Deletion cancelled.');
+            return;
+        }
+
+        const deleted = manager.deleteAgent(id);
+        if (deleted) {
+            log.success(`Deleted custom agent ${id}: ${agent.role}`);
+        } else {
+            log.error(`Failed to delete agent ${id}.`);
+        }
+    }
+
+    async exportCustomAgent(args) {
+        const agentId = args[0];
+        if (!agentId) {
+            log.error('Usage: /export-agent <agent_id>');
+            return;
+        }
+
+        const { getCustomAgentManager } = require('./agents/custom.js');
+        const manager = getCustomAgentManager();
+        const id = parseInt(agentId, 10);
+
+        const exportData = manager.exportAgent(id);
+        if (!exportData) {
+            log.error(`Custom agent with ID ${id} not found.`);
+            return;
+        }
+
+        const exportPath = path.join(process.cwd(), `${exportData.agent.role.toLowerCase().replace(/\s+/g, '-')}-agent.json`);
+        fs.writeFileSync(exportPath, JSON.stringify(exportData, null, 2));
+
+        log.success(`Exported agent "${exportData.agent.role}" to:`);
+        log.info(chalk.cyan(exportPath));
+
+        console.log(boxen(
+            `${chalk.cyan('Name:')} ${exportData.agent.role}\n` +
+            `${chalk.cyan('Model:')} ${exportData.agent.model}\n` +
+            `${chalk.cyan('Format:')} ${exportData.formatVersion}\n` +
+            `${chalk.cyan('File:')} ${exportPath}`,
+            { padding: 1, borderColor: 'yellow', title: ' AGENT EXPORTED ' }
+        ));
+    }
+
+    async importCustomAgent(args) {
+        // Support: /import-agent <filepath>
+        // Or interactive file selection
+        let filePath = args[0];
+
+        if (!filePath) {
+            // Check current directory for .json files
+            const files = fs.readdirSync(process.cwd())
+                .filter(f => f.endsWith('.json') && !f.startsWith('package') && f !== 'node_modules')
+                .map(f => path.join(process.cwd(), f));
+
+            if (files.length === 0) {
+                log.error('Usage: /import-agent <path-to-agent-definition.json>');
+                return;
+            }
+
+            const fileChoice = await new enquirer.Select({
+                name: 'file',
+                message: 'Select a file to import:',
+                choices: files.map(f => ({ name: f, message: path.basename(f) }))
+            }).run();
+
+            filePath = fileChoice;
+        }
+
+        const { getCustomAgentManager } = require('./agents/custom.js');
+        const manager = getCustomAgentManager();
+
+        try {
+            const agent = manager.importFromFile(filePath);
+            log.success(`Imported custom agent: ${chalk.bold(agent.role)} (ID: ${agent.id})`);
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                log.error(`File not found: ${filePath}`);
+            } else {
+                log.error(`Import failed: ${err.message}`);
+            }
         }
     }
 
