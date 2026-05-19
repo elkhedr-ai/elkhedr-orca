@@ -1,0 +1,32 @@
+{
+  "name": "@elkhedr/orca-sdk",
+  "version": "1.0.0",
+  "description": "Official JavaScript/TypeScript SDK for Elkhedr Orca multi-agent orchestration API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "node --test tests/**/*.test.js",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["orca", "ai", "agent", "orchestration", "sdk", "elkhedr"],
+  "author": "Elkhedr",
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
