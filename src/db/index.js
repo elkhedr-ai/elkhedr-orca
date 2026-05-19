@@ -8,6 +8,9 @@ const path = require('path');
 const { createFromEnv, parseConfig } = require('./adapters/factory.js');
 const { initDatabase } = require('./init.js');
 const { logger } = require('../utils/logger.js');
+const cache = require('../cache');
+
+const ANALYTICS_CACHE_TTL = 120; // 2 min
 
 class DatabaseManager {
   constructor() {
@@ -138,7 +141,7 @@ class DatabaseManager {
 
      for (const agentData of data.agents) {
        await this.adapter.execute(upsertSql, [
-         agentData.name,
+         agentData.name || agentData.role,
          agentData.role,
          agentData.model,
          agentData.fallbackModel,
@@ -186,26 +189,29 @@ class DatabaseManager {
    * @param {number|null} userId - If null, returns global analytics (admin only)
    */
   async getAnalyticsData(userId = null) {
-    let sql = `
-      SELECT
-        COALESCE(SUM(c.tokens), 0) as totalTokens,
-        COALESCE(SUM(c.cost), 0) as totalCost,
-        COUNT(t.id) as totalOperations
-      FROM tasks t
-      LEFT JOIN costs c ON t.id = c.task_id
-    `;
-    const params = [];
-    if (userId !== null) {
-      sql += ' WHERE t.user_id = ?';
-      params.push(userId);
-    }
-    const row = await this.adapter.query(sql, params).then(rows => rows[0]);
-    return {
-      totalOperations: row.totalOperations || 0,
-      totalTokens: row.totalTokens || 0,
-      totalCost: row.totalCost || 0,
-      agentUsage: {}
-    };
+    const cacheKey = userId !== null ? ['user', userId] : ['global'];
+    return cache.rememberQuery('analytics', cacheKey, async () => {
+      let sql = `
+        SELECT
+          COALESCE(SUM(c.tokens), 0) as totalTokens,
+          COALESCE(SUM(c.cost), 0) as totalCost,
+          COUNT(t.id) as totalOperations
+        FROM tasks t
+        LEFT JOIN costs c ON t.id = c.task_id
+      `;
+      const params = [];
+      if (userId !== null) {
+        sql += ' WHERE t.user_id = ?';
+        params.push(userId);
+      }
+      const row = await this.adapter.query(sql, params).then(rows => rows[0]);
+      return {
+        totalOperations: row.totalOperations || 0,
+        totalTokens: row.totalTokens || 0,
+        totalCost: row.totalCost || 0,
+        agentUsage: {}
+      };
+    }, ANALYTICS_CACHE_TTL);
   }
 
   /**
@@ -213,31 +219,34 @@ class DatabaseManager {
    * @param {number|null} userId - If null, returns global usage (admin only)
    */
   async getAgentUsageData(userId = null) {
-    let sql = `
-      SELECT
-        t.agent_role as role,
-        COUNT(t.id) as calls,
-        COALESCE(SUM(c.tokens), 0) as tokens,
-        COALESCE(SUM(c.cost), 0) as cost
-      FROM tasks t
-      LEFT JOIN costs c ON t.id = c.task_id
-    `;
-    const params = [];
-    if (userId !== null) {
-      sql += ' WHERE t.user_id = ?';
-      params.push(userId);
-    }
-    sql += ' GROUP BY t.agent_role ORDER BY cost DESC';
-    const rows = await this.adapter.query(sql, params);
-    const usage = {};
-    for (const row of rows) {
-      usage[row.role] = {
-        calls: row.calls,
-        tokens: row.tokens,
-        cost: row.cost
-      };
-    }
-    return usage;
+    const cacheKey = userId !== null ? ['agent-usage', userId] : ['agent-usage', 'global'];
+    return cache.rememberQuery('analytics', cacheKey, async () => {
+      let sql = `
+        SELECT
+          t.agent_role as role,
+          COUNT(t.id) as calls,
+          COALESCE(SUM(c.tokens), 0) as tokens,
+          COALESCE(SUM(c.cost), 0) as cost
+        FROM tasks t
+        LEFT JOIN costs c ON t.id = c.task_id
+      `;
+      const params = [];
+      if (userId !== null) {
+        sql += ' WHERE t.user_id = ?';
+        params.push(userId);
+      }
+      sql += ' GROUP BY t.agent_role ORDER BY cost DESC';
+      const rows = await this.adapter.query(sql, params);
+      const usage = {};
+      for (const row of rows) {
+        usage[row.role] = {
+          calls: row.calls,
+          tokens: row.tokens,
+          cost: row.cost
+        };
+      }
+      return usage;
+    }, ANALYTICS_CACHE_TTL);
   }
 
   /**
@@ -251,6 +260,9 @@ class DatabaseManager {
 
     // Also update aggregate tables
     await this.updateAnalyticsAggregates(tokens, cost);
+
+    // Invalidate analytics caches
+    await cache.delPattern('orca:analytics:*');
   }
 
   /**

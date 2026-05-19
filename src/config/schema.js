@@ -32,6 +32,9 @@ const envSchema = z.object({
   ORCA_DB_FILE_MUST_EXIST: z.string().optional(),
   
   ORCA_REDIS_URL: z.string().optional(),
+  ORCA_REDIS_TTL: z.string().default('300'),
+  ORCA_REDIS_KEY_PREFIX: z.string().default('orca'),
+  ORCA_REDIS_TLS_ENABLED: z.string().default('false'),
   ORCA_PORT: z.string().default('3000'),
   ORCA_HOST: z.string().default('0.0.0.0'),
   ORCA_JWT_SECRET: z.string().min(32).optional(),

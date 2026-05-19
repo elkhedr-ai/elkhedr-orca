@@ -1,4 +1,7 @@
 const { getDatabaseInstance } = require('../db');
+const cache = require('../cache');
+
+const SESSION_CACHE_TTL = 600; // 10 min
 
 /**
  * Get session stats by session ID.
@@ -7,12 +10,32 @@ const { getDatabaseInstance } = require('../db');
  * @returns {Promise<Object|null>} Object with level, sandbox, currentAgent or null if not found.
  */
 async function getSession(sessionId, userId = null) {
+  if (userId === null) {
+    // Try cache first
+    const cached = await cache.remember(
+      'session', sessionId,
+      async () => {
+        const db = await getDatabaseInstance();
+        const row = await db.getSessionStats(sessionId, null);
+        if (!row) return null;
+        return {
+          level: row.level,
+          sandbox: !!row.sandbox,
+          currentAgent: row.currentAgent
+        };
+      },
+      SESSION_CACHE_TTL
+    );
+    return cached;
+  }
+
+  // With userId verification, skip cache
   const db = await getDatabaseInstance();
   const row = await db.getSessionStats(sessionId, userId);
   if (!row) return null;
   return {
     level: row.level,
-    sandbox: !!row.sandbox, // convert 0/1 to boolean
+    sandbox: !!row.sandbox,
     currentAgent: row.currentAgent
   };
 }
@@ -31,6 +54,8 @@ async function upsertSession(sessionId, stats, userId = null) {
     currentAgent: stats.currentAgent,
     userId: userId
   });
+  // Invalidate cache
+  await cache.del(cache.buildKey('session', sessionId));
 }
 
 /**
