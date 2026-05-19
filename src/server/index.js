@@ -143,6 +143,7 @@ async function buildServer(options = {}) {
   fastify.register(require('./routes/enterprise.js'), { prefix: '/api/v1' });
   fastify.register(require('./routes/support.js'), { prefix: '/api/v1' });
   fastify.register(require('./routes/alerts.js'), { prefix: '/api/v1' });
+  fastify.register(require('./routes/backups.js'), { prefix: '/api/v1' });
 
   // Health, readiness, and metrics (no auth required)
   fastify.register(require('./health.js'));

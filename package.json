@@ -22,7 +22,10 @@
     "db:migrate:down": "node -e \"require('./src/db/init.js').runMigrations('down').catch(console.error)\"",
     "db:migrate:rollback": "node -e \"require('./src/db/init.js').runMigrations('rollback').catch(console.error)\"",
     "db:migrate:status": "node -e \"require('./src/db/init.js').runMigrations('status').catch(console.error)\"",
-    "db:migrate:make": "node -e \"const name = process.argv[2]; if (!name) { console.error('Usage: npm run db:migrate:make <name>'); process.exit(1); } require('./src/db/init.js').createMigration(name).catch(console.error)\""
+    "db:migrate:make": "node -e \"const name = process.argv[2]; if (!name) { console.error('Usage: npm run db:migrate:make <name>'); process.exit(1); } require('./src/db/init.js').createMigration(name).catch(console.error)\"",
+    "db:backup": "bash scripts/backup.sh",
+    "db:restore": "bash scripts/restore.sh",
+    "db:backup:list": "ls -lh backups/db/ 2>/dev/null || echo 'No backups found'"
   },
   "keywords": [
     "ai",

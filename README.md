@@ -45,6 +45,7 @@ orca "Build a full-stack SaaS app and draft a marketing plan"
 - [Architecture Overview](docs/ARCHITECTURE.md) - System design and patterns
 - [TUI Guide](docs/TUI_GUIDE.md) - Terminal interface usage
 - [Agent Directory](docs/AGENT_DIRECTORY.md) - Complete agent catalog
+- [Database Backup Guide](docs/BACKUP_GUIDE.md) - Backup/restore procedures
 
 ## 🛡️ License
 ISC
