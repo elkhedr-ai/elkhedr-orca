@@ -23,6 +23,7 @@ const {
 } = require('./schemas/index.js');
 const { loadConfig, getConfig } = require('./config/index.js');
 const { initializeDatabaseInstance } = require('./db/index.js');
+const cache = require('./cache');
 const { addMessage, getContext } = require('./memory/manager');
 const { getOrCreateSession, updateSession } = require('./session/manager');
 const { getUserContext } = require('./auth/context');
@@ -31,10 +32,14 @@ const { getModelRegistry } = require('./models/registry.js');
 const { getLocalModelClient } = require('./models/local.js');
 const { getQuotaManager } = require('./billing/quotas.js');
 const { calculateCost } = require('./billing/pricing.js');
+const { getAgentMetrics } = require('./agents/metrics.js');
 
 // Load and validate configuration on module initialization
 loadConfig();
 const config = getConfig();
+
+// Initialize cache (Redis if configured, no-op otherwise)
+cache.init(config.ORCA_REDIS_URL);
 
 const OPENROUTER_API_KEY = config.OPENROUTER_API_KEY;
 const OPENROUTER_BASE_URL = config.ORCA_OPENROUTER_BASE_URL.replace(/\/$/, '');
@@ -149,27 +154,36 @@ async function checkQuotaBeforeCall() {
 /**
  * Update analytics with operation metrics
  */
-async function updateAnalytics(agentRole, tokens, cost) {
+async function updateAnalytics(agentRole, tokens, cost, { latencyMs = null, success = true, modelUsed = null, errorType = null } = {}) {
   try {
     const db = await getDbInstance();
     const { userId } = getUserContext();
-    
-    // Create a task record first
+
+    // Create a task record with performance data
     const taskResult = await db.getAdapter().execute(
-      `INSERT INTO tasks (user_id, agent_role, prompt, result, tokens, cost)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (user_id, agent_role, prompt, result, tokens, cost, latency_ms, success, model_used, error_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         agentRole,
         `Analytics update: ${tokens} tokens, $${cost.toFixed(4)} cost`,
         `Updated analytics for ${agentRole}`,
         tokens,
-        cost
+        cost,
+        latencyMs,
+        success,
+        modelUsed,
+        errorType
       ]
     );
-    
+
     // Then insert the cost record linked to this task
     await db.updateAnalytics(taskResult.lastInsertRowid, tokens, cost);
+
+    // Record in agent_metrics aggregate table
+    try {
+      getAgentMetrics().recordCall(agentRole, { tokens, cost, latencyMs, success, modelUsed, errorType });
+    } catch { /* metrics recording is best-effort */ }
   } catch (e) {
     logger.warn({ error: e.message }, 'Failed to update analytics');
   }
@@ -417,10 +431,11 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
         const choice = response.data.choices[0];
         const tokens = response.data.usage?.total_tokens || 0;
         const cost = calculateCost(tokens, targetModel);
+        const latencyMs = Date.now() - startedAt;
 
-        await updateAnalytics(agentRole, tokens, cost);
+        await updateAnalytics(agentRole, tokens, cost, { latencyMs, success: true, modelUsed: targetModel });
         await trackQuotaUsage(tokens, cost, targetModel);
-        log.info({ tokens, cost }, 'API call successful');
+        log.info({ tokens, cost, latencyMs }, 'API call successful');
         
         // Handle Tool Calls
         if (choice.message.tool_calls) {
@@ -495,11 +510,25 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
       return null;
     } catch (e) {
       lastError = e;
-      log.error({ 
-        error: e.message, 
+      const latencyMs = Date.now() - startedAt;
+      const errorType = e.response?.status === 429 ? 'rate_limit'
+        : e.response?.status >= 500 ? 'server_error'
+        : e.response?.status === 401 ? 'auth_error'
+        : e.code === 'ECONNRESET' || e.code === 'ETIMEDOUT' ? 'network_error'
+        : 'unknown_error';
+
+      // Record failure metrics
+      try {
+        await updateAnalytics(agentRole, 0, 0, { latencyMs, success: false, modelUsed: targetModel, errorType });
+      } catch { /* best-effort */ }
+
+      log.error({
+        error: e.message,
         status: e.response?.status,
         statusText: e.response?.statusText,
-        model: targetModel 
+        model: targetModel,
+        latencyMs,
+        errorType
       }, 'API call failed');
       
       if (e.response?.status === 401) {
