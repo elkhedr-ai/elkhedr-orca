@@ -116,10 +116,23 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     // For INSERT statements, try to get the inserted ID
     if (sql.trim().toUpperCase().startsWith('INSERT')) {
       // Add RETURNING id if not present
-      const returningClause = sql.toUpperCase().includes('RETURNING') 
-        ? '' 
-        : ' RETURNING id';
-      const result = await this.knex.raw(pgSql + returningClause, params);
+      const hasReturning = sql.toUpperCase().includes('RETURNING');
+      let result;
+
+      if (hasReturning) {
+        result = await this.knex.raw(pgSql, params);
+      } else {
+        const sqlWithReturning = pgSql.replace(/;?\s*$/, ' RETURNING id');
+        try {
+          result = await this.knex.raw(sqlWithReturning, params);
+        } catch (error) {
+          // Some aggregate tables do not have an id column.
+          if (!/column "?id"? does not exist/i.test(error.message)) {
+            throw error;
+          }
+          result = await this.knex.raw(pgSql, params);
+        }
+      }
       
       return {
         lastInsertRowid: result.rows[0]?.id || null,
@@ -232,6 +245,22 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     }
 
     await this.knex.raw(sql);
+  }
+
+  /**
+   * Run a SQL statement and return the execution result.
+   * Provided for compatibility with the SQLite adapter.
+   */
+  async run(sql, params = []) {
+    return await this.execute(sql, params);
+  }
+
+  /**
+   * Run a SQL query and return all rows.
+   * Provided for compatibility with the SQLite adapter.
+   */
+  async all(sql, params = []) {
+    return await this.query(sql, params);
   }
 
   /**

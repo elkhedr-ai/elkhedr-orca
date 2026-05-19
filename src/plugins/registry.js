@@ -90,6 +90,13 @@ class SkillRegistry {
   }
 
   /**
+   * Backward-compatible alias used by older skill tests/callers.
+   */
+  getAll() {
+    return this.list();
+  }
+
+  /**
    * Get tool definitions for all skills (for OpenRouter function calling)
    */
   getToolDefinitions() {

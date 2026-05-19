@@ -40,6 +40,10 @@ function loadConfig() {
       ORCA_TIMEOUT: parseInt(parsed.ORCA_TIMEOUT, 10),
       ORCA_ANALYTICS_RETENTION_DAYS: parseInt(parsed.ORCA_ANALYTICS_RETENTION_DAYS, 10),
       ORCA_PORT: parseInt(parsed.ORCA_PORT, 10),
+      ORCA_MODEL_HEALTH_INTERVAL_MS: parseInt(parsed.ORCA_MODEL_HEALTH_INTERVAL_MS, 10),
+      ORCA_MODEL_MAX_FALLBACKS: parseInt(parsed.ORCA_MODEL_MAX_FALLBACKS, 10),
+      ORCA_MODEL_LATENCY_BUDGET_MS: parseInt(parsed.ORCA_MODEL_LATENCY_BUDGET_MS, 10),
+      ORCA_MODEL_FAILURE_THRESHOLD: parseInt(parsed.ORCA_MODEL_FAILURE_THRESHOLD, 10),
     };
 
     return validatedConfig;

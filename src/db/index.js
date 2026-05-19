@@ -27,13 +27,13 @@ class DatabaseManager {
     try {
       // Create adapter from environment configuration
       this.adapter = await createFromEnv();
-      
+
       // Initialize database schema/migrations
       await initDatabase(this.adapter);
-      
+
       // Prepare commonly used statements
       await this.prepareStatements();
-      
+
       this.initialized = true;
       logger.info(`Database initialized (${this.adapter.getType()})`);
     } catch (error) {
@@ -48,7 +48,7 @@ class DatabaseManager {
   async prepareStatements() {
     // Analytics statements
     this.preparedStatements.getAnalytics = this.adapter.prepare(`
-      SELECT 
+      SELECT
         COALESCE(SUM(c.tokens), 0) as totalTokens,
         COALESCE(SUM(c.cost), 0) as totalCost,
         COUNT(t.id) as totalOperations
@@ -57,7 +57,7 @@ class DatabaseManager {
     `);
 
     this.preparedStatements.getAgentUsage = this.adapter.prepare(`
-      SELECT 
+      SELECT
         t.agent_role as role,
         COUNT(t.id) as calls,
         COALESCE(SUM(c.tokens), 0) as tokens,
@@ -70,7 +70,7 @@ class DatabaseManager {
 
     // Session statements
     this.preparedStatements.getSessions = this.adapter.prepare(`
-      SELECT 
+      SELECT
         id, created_at as timestamp, prompt, mode, agent, result, tokens, traceId
       FROM sessions
       ORDER BY created_at DESC
@@ -110,49 +110,96 @@ class DatabaseManager {
   /**
    * Load agents from JSON file into database
    */
-  async loadAgentsFromJson() {
-    const fs = require('fs');
-    const agentsPath = path.join(__dirname, '..', 'agents.json');
-    
-    if (!fs.existsSync(agentsPath)) {
-      return 0;
+   /**
+    * Load agents from JSON file into database
+    */
+   async loadAgentsFromJson() {
+     const fs = require('fs');
+     const agentsPath = path.join(__dirname, '..', 'agents.json');
+
+     if (!fs.existsSync(agentsPath)) {
+       return 0;
+     }
+
+     const data = JSON.parse(fs.readFileSync(agentsPath, 'utf8'));
+
+     // Use appropriate INSERT OR REPLACE syntax based on database type
+     const upsertSql = this.adapter.getType() === 'sqlite'
+       ? `INSERT OR REPLACE INTO agents (name, role, model, fallbackModel, department, updated_at)
+          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+       : `INSERT INTO agents (name, role, model, "fallbackModel", department, updated_at)
+          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT (name) DO UPDATE SET
+            role = EXCLUDED.role,
+            model = EXCLUDED.model,
+            "fallbackModel" = EXCLUDED."fallbackModel",
+            department = EXCLUDED.department,
+            updated_at = CURRENT_TIMESTAMP`;
+
+     for (const agentData of data.agents) {
+       await this.adapter.execute(upsertSql, [
+         agentData.name,
+         agentData.role,
+         agentData.model,
+         agentData.fallbackModel,
+         agentData.department || null
+       ]);
+     }
+
+     return data.agents.length;
+   }
+
+  // ---- Conversation Memory Methods ----
+  /**
+   * Insert a conversation message into the DB.
+   * @param {Object} params - {agentId, sessionId, userId, role, content}
+   */
+  async addConversationMessage({agentId, sessionId, userId = null, role, content}) {
+    const sql = `INSERT INTO conversation_messages (agent_id, session_id, user_id, role, content)
+                 VALUES (?, ?, ?, ?, ?);`;
+    await this.adapter.execute(sql, [agentId, sessionId, userId, role, content]);
+  }
+
+  /**
+   * Retrieve recent messages for an agent/session.
+   * If userId is provided, filters by user_id for isolation.
+   * @param {Object} params - {agentId, sessionId, userId, limit}
+   */
+  async getRecentMessages({agentId, sessionId, userId = null, limit = 20}) {
+    let sql = `SELECT role, content, created_at FROM conversation_messages
+               WHERE agent_id = ? AND session_id = ?`;
+    const params = [agentId, sessionId];
+    if (userId !== null) {
+      sql += ' AND user_id = ?';
+      params.push(userId);
     }
-
-    const data = JSON.parse(fs.readFileSync(agentsPath, 'utf8'));
-    
-    // Use appropriate INSERT OR REPLACE syntax based on database type
-    const upsertSql = this.adapter.getType() === 'sqlite'
-      ? `INSERT OR REPLACE INTO agents (name, role, model, fallbackModel, department, updated_at)
-         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-      : `INSERT INTO agents (name, role, model, "fallbackModel", department, updated_at)
-         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-         ON CONFLICT (name) DO UPDATE SET
-           role = EXCLUDED.role,
-           model = EXCLUDED.model,
-           "fallbackModel" = EXCLUDED."fallbackModel",
-           department = EXCLUDED.department,
-           updated_at = CURRENT_TIMESTAMP`;
-
-    for (const agentData of data.agents) {
-      await this.adapter.execute(upsertSql, [
-        agentData.name,
-        agentData.role,
-        agentData.model,
-        agentData.fallbackModel,
-        agentData.department || null
-      ]);
-    }
-
-    return data.agents.length;
+    sql += ' ORDER BY created_at ASC LIMIT ?;';
+    params.push(limit);
+    const rows = await this.adapter.all(sql, params);
+    return rows;
   }
 
   // ==================== Analytics Methods ====================
 
   /**
-   * Get analytics data
+   * Get analytics data filtered by user_id (if provided)
+   * @param {number|null} userId - If null, returns global analytics (admin only)
    */
-  async getAnalyticsData() {
-    const row = await this.preparedStatements.getAnalytics.get();
+  async getAnalyticsData(userId = null) {
+    let sql = `
+      SELECT
+        COALESCE(SUM(c.tokens), 0) as totalTokens,
+        COALESCE(SUM(c.cost), 0) as totalCost,
+        COUNT(t.id) as totalOperations
+      FROM tasks t
+      LEFT JOIN costs c ON t.id = c.task_id
+    `;
+    const params = [];
+    if (userId !== null) {
+      sql += ' WHERE t.user_id = ?';
+      params.push(userId);
+    }
+    const row = await this.adapter.query(sql, params).then(rows => rows[0]);
     return {
       totalOperations: row.totalOperations || 0,
       totalTokens: row.totalTokens || 0,
@@ -162,10 +209,26 @@ class DatabaseManager {
   }
 
   /**
-   * Get agent usage data
+   * Get agent usage data filtered by user_id (if provided)
+   * @param {number|null} userId - If null, returns global usage (admin only)
    */
-  async getAgentUsageData() {
-    const rows = await this.preparedStatements.getAgentUsage.all();
+  async getAgentUsageData(userId = null) {
+    let sql = `
+      SELECT
+        t.agent_role as role,
+        COUNT(t.id) as calls,
+        COALESCE(SUM(c.tokens), 0) as tokens,
+        COALESCE(SUM(c.cost), 0) as cost
+      FROM tasks t
+      LEFT JOIN costs c ON t.id = c.task_id
+    `;
+    const params = [];
+    if (userId !== null) {
+      sql += ' WHERE t.user_id = ?';
+      params.push(userId);
+    }
+    sql += ' GROUP BY t.agent_role ORDER BY cost DESC';
+    const rows = await this.adapter.query(sql, params);
     const usage = {};
     for (const row of rows) {
       usage[row.role] = {
@@ -185,7 +248,7 @@ class DatabaseManager {
       `INSERT INTO costs (task_id, tokens, cost) VALUES (?, ?, ?)`,
       [taskId, tokens, cost]
     );
-    
+
     // Also update aggregate tables
     await this.updateAnalyticsAggregates(tokens, cost);
   }
@@ -198,10 +261,10 @@ class DatabaseManager {
     const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
     const year = now.getFullYear();
     const month = now.getMonth() + 1; // 1-12
-    
+
     // Calculate ISO week
     const week = this.getISOWeek(now);
-    
+
     // Update daily aggregates
     await this.adapter.execute(`
       INSERT INTO analytics_daily (date, total_operations, total_tokens, total_cost, agent_usage)
@@ -212,7 +275,7 @@ class DatabaseManager {
         total_cost = total_cost + ?,
         updated_at = CURRENT_TIMESTAMP
     `, [dateStr, tokens, cost, tokens, cost]);
-    
+
     // Update weekly aggregates
     await this.adapter.execute(`
       INSERT INTO analytics_weekly (year, week, total_operations, total_tokens, total_cost, agent_usage)
@@ -223,7 +286,7 @@ class DatabaseManager {
         total_cost = total_cost + ?,
         updated_at = CURRENT_TIMESTAMP
     `, [year, week, tokens, cost, tokens, cost]);
-    
+
     // Update monthly aggregates
     await this.adapter.execute(`
       INSERT INTO analytics_monthly (year, month, total_operations, total_tokens, total_cost, agent_usage)
@@ -254,8 +317,8 @@ class DatabaseManager {
    */
   async getDailyAnalytics(limit = 30) {
     const rows = await this.adapter.query(`
-      SELECT * FROM analytics_daily 
-      ORDER BY date DESC 
+      SELECT * FROM analytics_daily
+      ORDER BY date DESC
       LIMIT ?
     `, [limit]);
     return rows;
@@ -266,8 +329,8 @@ class DatabaseManager {
    */
   async getWeeklyAnalytics(limit = 12) {
     const rows = await this.adapter.query(`
-      SELECT * FROM analytics_weekly 
-      ORDER BY year DESC, week DESC 
+      SELECT * FROM analytics_weekly
+      ORDER BY year DESC, week DESC
       LIMIT ?
     `, [limit]);
     return rows;
@@ -278,8 +341,8 @@ class DatabaseManager {
    */
   async getMonthlyAnalytics(limit = 12) {
     const rows = await this.adapter.query(`
-      SELECT * FROM analytics_monthly 
-      ORDER BY year DESC, month DESC 
+      SELECT * FROM analytics_monthly
+      ORDER BY year DESC, month DESC
       LIMIT ?
     `, [limit]);
     return rows;
@@ -288,10 +351,24 @@ class DatabaseManager {
   // ==================== Session Methods ====================
 
   /**
-   * Get session history
+   * Get session history filtered by user_id (if provided)
+   * @param {number|null} userId - If null, returns all sessions (admin only)
+   * @param {number} limit - Maximum number of sessions to return
    */
-  async getSessionsData(limit = 50) {
-    const rows = await this.preparedStatements.getSessions.all(limit);
+  async getSessionsData(userId = null, limit = 50) {
+    let sql = `
+      SELECT
+        id, created_at as timestamp, prompt, mode, agent, result, tokens, traceId
+      FROM sessions
+    `;
+    const params = [];
+    if (userId !== null) {
+      sql += ' WHERE user_id = ?';
+      params.push(userId);
+    }
+    sql += ' ORDER BY created_at DESC LIMIT ?';
+    params.push(limit);
+    const rows = await this.adapter.query(sql, params);
     return rows.map(row => ({
       id: row.id,
       timestamp: row.timestamp,
@@ -305,17 +382,24 @@ class DatabaseManager {
   }
 
   /**
-   * Save session data
+   * Save session data with optional user_id
+   * @param {Object} sessionData
+   * @param {number|null} userId
    */
-  async saveSessionData(sessionData) {
-    const result = await this.preparedStatements.saveSession.run(
+  async saveSessionData(sessionData, userId = null) {
+    const sql = `
+      INSERT INTO sessions (user_id, prompt, mode, agent, result, tokens, traceId)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    const result = await this.adapter.run(sql, [
+      userId,
       sessionData.prompt,
       sessionData.mode,
       sessionData.agent,
       sessionData.result,
       sessionData.tokens,
       sessionData.traceId
-    );
+    ]);
     return result.lastInsertRowid;
   }
 
@@ -351,7 +435,7 @@ class DatabaseManager {
 
     if (count > 100) {
       await this.adapter.execute(`
-        DELETE FROM input_history 
+        DELETE FROM input_history
         WHERE id NOT IN (
           SELECT id FROM input_history ORDER BY id DESC LIMIT 100
         )
@@ -383,6 +467,104 @@ class DatabaseManager {
       department: row.department
     }));
   }
+
+  // ==================== Knowledge Base Methods ====================
+  /**
+   * Create a new knowledge entry.
+   * @param {Object} params - {agentId, sessionId, userId, title, content, type}
+   */
+  async createKnowledgeEntry({agentId, sessionId = null, userId = null, title, content, type = 'markdown'}) {
+    const sql = `INSERT INTO knowledge_entries (agent_id, session_id, user_id, title, content, content_type)
+                 VALUES (?, ?, ?, ?, ?, ?);`;
+    const result = await this.adapter.run(sql, [agentId, sessionId, userId, title, content, type]);
+    return result.lastInsertRowid;
+  }
+
+  /**
+   * Update an existing knowledge entry (adds a version).
+   * Only updates if userId matches or is null (public entry).
+   */
+  async updateKnowledgeEntry(entryId, {content, userId = null}) {
+    // Verify ownership if userId is provided
+    if (userId !== null) {
+      const entry = await this.getKnowledgeEntryById(entryId);
+      if (entry && entry.user_id !== null && entry.user_id !== userId) {
+        throw new Error(`Unauthorized: cannot update knowledge entry ${entryId}`);
+      }
+    }
+    // Insert version snapshot
+    await this.adapter.run(`INSERT INTO knowledge_versions (entry_id, content) VALUES (?, ?);`, [entryId, content]);
+    // Update latest content & timestamp
+    await this.adapter.run(`UPDATE knowledge_entries SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`, [content, entryId]);
+  }
+
+  /**
+   * Simple search over title and content (LIKE fallback).
+   * If userId is provided, filters by user_id for isolation.
+   */
+  async searchKnowledge(agentId, query, userId = null, limit = 10) {
+    const pattern = `%${query}%`;
+    let sql = `SELECT id, title, content_type, created_at FROM knowledge_entries
+               WHERE agent_id = ? AND (title LIKE ? OR content LIKE ?)`;
+    const params = [agentId, pattern, pattern];
+    if (userId !== null) {
+      sql += ' AND (user_id = ? OR user_id IS NULL)';
+      params.push(userId);
+    }
+    sql += ' ORDER BY updated_at DESC LIMIT ?;';
+    params.push(limit);
+    const rows = await this.adapter.all(sql, params);
+    return rows;
+  }
+
+  /**
+   * Retrieve entry by ID (latest content).
+   * If userId is provided, verifies ownership or public access.
+   */
+  async getKnowledgeEntryById(entryId, userId = null) {
+    let sql = `SELECT * FROM knowledge_entries WHERE id = ?`;
+    const params = [entryId];
+    if (userId !== null) {
+      sql += ' AND (user_id = ? OR user_id IS NULL)';
+      params.push(userId);
+    }
+    sql += ';';
+    const rows = await this.adapter.all(sql, params);
+    return rows[0] || null;
+  }
+
+  // ==================== Session Stats Methods ====================
+   /**
+    * Get session stats by session ID.
+    * If userId is provided, verifies ownership.
+    */
+   async getSessionStats(sessionId, userId = null) {
+     let sql = `SELECT level, sandbox, currentAgent, user_id FROM session_stats WHERE session_id = ?`;
+     const params = [sessionId];
+     if (userId !== null) {
+       sql += ' AND (user_id = ? OR user_id IS NULL)';
+       params.push(userId);
+     }
+     sql += ';';
+     const rows = await this.adapter.all(sql, params);
+     return rows[0] || null;
+   }
+
+   /**
+    * Create or update session stats.
+    * If a row exists, update it; otherwise insert a new row.
+    * userId is set on insert but not updated on conflict to preserve ownership.
+    */
+   async upsertSessionStats(sessionId, {level = 'Auto', sandbox = false, currentAgent = null, userId = null}) {
+     const sql = `INSERT INTO session_stats (session_id, user_id, level, sandbox, currentAgent, updated_at)
+                  VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                  ON CONFLICT(session_id) DO UPDATE SET
+                    level = EXCLUDED.level,
+                    sandbox = EXCLUDED.sandbox,
+                    currentAgent = EXCLUDED.currentAgent,
+                    updated_at = CURRENT_TIMESTAMP;`;
+     await this.adapter.run(sql, [sessionId, userId, level, sandbox ? 1 : 0, currentAgent]);
+   }
 
   // ==================== Utility Methods ====================
 
@@ -463,7 +645,7 @@ async function initializeDatabaseInstance() {
   return db;
 }
 
-module.exports = { 
+module.exports = {
   getDatabaseInstance,
   initializeDatabaseInstance,
   DatabaseManager

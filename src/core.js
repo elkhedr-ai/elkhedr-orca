@@ -23,12 +23,18 @@ const {
 } = require('./schemas/index.js');
 const { loadConfig, getConfig } = require('./config/index.js');
 const { initializeDatabaseInstance } = require('./db/index.js');
+const { addMessage, getContext } = require('./memory/manager');
+const { getOrCreateSession, updateSession } = require('./session/manager');
+const { getUserContext } = require('./auth/context');
+const { queryWithRag, extractCitations } = require('./rag/prompts.js');
+const { getModelRegistry } = require('./models/registry.js');
 
 // Load and validate configuration on module initialization
 loadConfig();
 const config = getConfig();
 
 const OPENROUTER_API_KEY = config.OPENROUTER_API_KEY;
+const OPENROUTER_BASE_URL = config.ORCA_OPENROUTER_BASE_URL.replace(/\/$/, '');
 const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'), 'utf8'));
 const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it";
 
@@ -65,12 +71,14 @@ if (!OPENROUTER_API_KEY) {
 async function updateAnalytics(agentRole, tokens, cost) {
   try {
     const db = await getDbInstance();
+    const { userId } = getUserContext();
     
     // Create a task record first
     const taskResult = await db.getAdapter().execute(
-      `INSERT INTO tasks (agent_role, prompt, result, tokens, cost)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (user_id, agent_role, prompt, result, tokens, cost)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
+        userId,
         agentRole,
         `Analytics update: ${tokens} tokens, $${cost.toFixed(4)} cost`,
         `Updated analytics for ${agentRole}`,
@@ -86,12 +94,162 @@ async function updateAnalytics(agentRole, tokens, cost) {
   }
 }
 
+function parseBoolean(value, defaultValue = true) {
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  return String(value).toLowerCase() !== 'false';
+}
+
+function parseNumber(value, defaultValue) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : defaultValue;
+}
+
+function getRagConfig(sessionStats = {}, overrides = {}) {
+  const { userId } = getUserContext();
+  const ragOptions = sessionStats.rag || {};
+  const agentScoped = parseBoolean(
+    ragOptions.agentScoped ?? sessionStats.ragAgentScoped ?? process.env.ORCA_RAG_AGENT_SCOPED,
+    false
+  );
+
+  const config = {
+    ragLimit: Number.parseInt(
+      ragOptions.limit ?? sessionStats.ragLimit ?? process.env.ORCA_RAG_LIMIT ?? '3',
+      10
+    ) || 3,
+    ragThreshold: parseNumber(
+      ragOptions.threshold ?? sessionStats.ragThreshold ?? process.env.ORCA_RAG_THRESHOLD,
+      0.15
+    ),
+    minConfidence: parseNumber(
+      ragOptions.minConfidence ?? sessionStats.ragMinConfidence ?? process.env.ORCA_RAG_MIN_CONFIDENCE,
+      0.2
+    ),
+    userId,
+    sourceType: ragOptions.sourceType ?? sessionStats.ragSourceType ?? 'knowledge_entry',
+    ragMetadata: ragOptions.metadata ?? sessionStats.ragMetadata
+  };
+
+  if (agentScoped && overrides.agentId !== undefined && overrides.agentId !== null) {
+    config.agentId = String(overrides.agentId);
+  }
+
+  return config;
+}
+
+function isRagEnabled(sessionStats = {}) {
+  const ragOptions = sessionStats.rag || {};
+  return parseBoolean(
+    ragOptions.enabled ?? sessionStats.ragEnabled ?? process.env.ORCA_RAG_ENABLED,
+    true
+  );
+}
+
+async function prepareRagMessages(prompt, contextMessages = [], options = {}) {
+  const sessionStats = options.sessionStats || {};
+  const baseMessages = [
+    ...contextMessages,
+    { role: 'user', content: prompt }
+  ];
+
+  if (!isRagEnabled(sessionStats)) {
+    return { messages: baseMessages, rag: { usedRag: false, disabled: true } };
+  }
+
+  try {
+    if (options.onEvent) {
+      options.onEvent({ type: 'status', message: '📚 Retrieving knowledge context...' });
+    }
+
+    const rag = await queryWithRag(prompt, getRagConfig(sessionStats, options));
+
+    if (!rag.usedRag) {
+      if (options.onEvent) {
+        options.onEvent({
+          type: 'rag',
+          usedRag: false,
+          confidence: rag.confidence || 0,
+          sources: []
+        });
+      }
+      return { messages: baseMessages, rag };
+    }
+
+    if (options.onEvent) {
+      options.onEvent({
+        type: 'rag',
+        usedRag: true,
+        confidence: rag.confidence,
+        sources: rag.sources,
+        retrievalTime: rag.retrievalTime
+      });
+    }
+
+    return {
+      messages: [
+        ...contextMessages,
+        { role: 'user', content: rag.prompt }
+      ],
+      rag
+    };
+  } catch (error) {
+    logger.warn({ error: error.message }, 'RAG preparation failed; using original prompt');
+    return {
+      messages: baseMessages,
+      rag: {
+        usedRag: false,
+        error: error.message,
+        sources: [],
+        confidence: 0
+      }
+    };
+  }
+}
+
+function formatSourceLine(source) {
+  const metadata = source.metadata || {};
+  const title = metadata.title || source.documentId || `Source ${source.index}`;
+  const similarity = Number.isFinite(source.similarity)
+    ? `, score ${source.similarity.toFixed(2)}`
+    : '';
+  return `[Source: ${source.index}] ${title}${similarity}`;
+}
+
+function finalizeRagResponse(content, rag) {
+  const responseText = content || '';
+  if (!rag?.usedRag || !Array.isArray(rag.sources) || rag.sources.length === 0) {
+    return responseText;
+  }
+
+  const citations = extractCitations(responseText).citations;
+  const cited = citations.length > 0
+    ? rag.sources.filter(source => citations.includes(source.index))
+    : rag.sources;
+
+  if (cited.length === 0) {
+    return responseText;
+  }
+
+  const sourceLines = cited.map(formatSourceLine).join('\n');
+  const confidence = Number.isFinite(rag.confidence)
+    ? `\nRetrieval confidence: ${(rag.confidence * 100).toFixed(0)}%`
+    : '';
+
+  return `${responseText}\n\nSources:\n${sourceLines}${confidence}`;
+}
+
 /**
  * Make an API call to OpenRouter with retry logic
  */
 async function callOpenRouter(model, messages, fallbackModel = null, sandbox = false, agentRole = "Orchestrator", useTools = false) {
   const traceId = `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const log = logger.child({ traceId, agentRole, model });
+  const modelRegistry = getModelRegistry();
   
   log.debug({ messageCount: messages.length }, 'Starting API call');
 
@@ -108,8 +266,17 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
     });
   }
 
+  const modelAttempts = modelRegistry.buildFallbackChain({
+    preferredModel: model,
+    fallbackModel,
+    universalFallback: UNIVERSAL_FALLBACK
+  });
+  const attemptedModels = [];
+  let lastError = null;
+
   const tryCall = async (targetModel) => {
     log.info({ targetModel }, 'Attempting API call');
+    const startedAt = Date.now();
     
     try {
       payload.model = targetModel;
@@ -117,7 +284,7 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
       // Wrap API call with circuit breaker protection
       const response = await openRouterCircuitBreaker.execute(async () => {
         return await withRetry(
-          () => axios.post('https://openrouter.ai/api/v1/chat/completions', payload, {
+          () => axios.post(`${OPENROUTER_BASE_URL}/chat/completions`, payload, {
             headers: {
               'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
               'X-Title': 'Elkhedr Orca',
@@ -205,11 +372,20 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
           return await callOpenRouter(targetModel, [...messages, choice.message, ...results], null, sandbox, agentRole, false);
         }
         
-        return { content: choice.message.content, usage: response.data.usage };
+        return {
+          content: choice.message.content,
+          usage: response.data.usage,
+          model: targetModel,
+          latency: Date.now() - startedAt
+        };
       }
       
+      lastError = new APIError(`OpenRouter returned no choices for model ${targetModel}`, {
+        model: targetModel
+      });
       return null;
     } catch (e) {
+      lastError = e;
       log.error({ 
         error: e.message, 
         status: e.response?.status,
@@ -224,39 +400,56 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
         });
       }
       if (e.response?.status === 429) {
-        throw new APIError(`Rate limit exceeded for model ${targetModel}. Please try again later.`, {
+        lastError = new APIError(`Rate limit exceeded for model ${targetModel}. Trying fallback if available.`, {
           model: targetModel,
           status: e.response.status
         });
+        return null;
       }
       if (e.response?.status >= 500) {
-        throw new APIError(`OpenRouter server error (${e.response.status}) for model ${targetModel}. Retrying...`, {
+        lastError = new APIError(`OpenRouter server error (${e.response.status}) for model ${targetModel}. Trying fallback if available.`, {
           model: targetModel,
           status: e.response.status
         });
+        return null;
       }
       
       return null;
     }
   };
 
-  let res = await tryCall(model);
-  if (!res && fallbackModel) {
-    log.info({ fallbackModel }, 'Trying fallback model');
-    res = await tryCall(fallbackModel);
-  }
-  if (!res) {
-    log.info({ universalFallback: UNIVERSAL_FALLBACK }, 'Trying universal fallback');
-    res = await tryCall(UNIVERSAL_FALLBACK);
+  for (const modelConfig of modelAttempts) {
+    attemptedModels.push(modelConfig.model);
+    let res;
+
+    try {
+      res = await tryCall(modelConfig.model);
+    } catch (error) {
+      modelRegistry.recordModelFailure(modelConfig.model, error);
+      throw error;
+    }
+
+    if (res) {
+      const tokens = res.usage?.total_tokens || 0;
+      const cost = (tokens / 1000000) * 0.5;
+      modelRegistry.recordModelSuccess(modelConfig.model, {
+        latency: res.latency,
+        tokens,
+        cost
+      });
+      return res;
+    }
+
+    modelRegistry.recordModelFailure(
+      modelConfig.model,
+      lastError || new APIError(`Model ${modelConfig.model} returned no response`, { model: modelConfig.model })
+    );
   }
   
-  if (!res) {
-    throw new APIError('All models failed to respond. Please check your API key and try again.', {
-      models: [model, fallbackModel, UNIVERSAL_FALLBACK]
-    });
-  }
-  
-  return res;
+  throw new APIError('All models failed to respond. Please check your API key and try again.', {
+    models: attemptedModels,
+    lastError: lastError?.message
+  });
 }
 
 /**
@@ -289,31 +482,87 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
     logger.info({ selectedLevel: level }, 'Auto-routing complete');
   }
 
+    // Load or create session stats from database with user isolation
+    const { getOrCreateSession, updateSession } = require('./session/manager');
+    const { userId: ctxUserId } = getUserContext();
+    const { sessionId: loadedSessionId, level: loadedLevel, sandbox: loadedSandbox, currentAgent: loadedCurrentAgent } = await getOrCreateSession(sessionStats.sessionId, ctxUserId);
+    // Override with any values passed in (if they exist)
+    const finalLevel = sessionStats.level ?? loadedLevel;
+    const finalSandbox = sessionStats.sandbox ?? loadedSandbox;
+    const finalCurrentAgent = sessionStats.currentAgent ?? loadedCurrentAgent;
+
+    // Store the merged stats back (so that changes persist)
+    await updateSession(sessionStats.sessionId || loadedSessionId, {
+      level: finalLevel,
+      sandbox: finalSandbox,
+      currentAgent: finalCurrentAgent
+    }, ctxUserId);
+
+    // Use merged stats for the rest of the function
+    const crypto = require('crypto');
+    // Note: sessionId is already from the session manager (or newly created if none)
+    sessionStats = {
+      sessionId: sessionStats.sessionId || loadedSessionId,
+      level: finalLevel,
+      sandbox: finalSandbox,
+      currentAgent: finalCurrentAgent
+    };
+
+  // Load recent context for this agent/session (default window size 20)
+  const { getContext, addMessage } = require('./memory/manager');
+  const contextMessages = await getContext('orchestrator', sessionStats.sessionId, 20);
+
   if (level === 'Instant') {
     if (onEvent) onEvent({ type: 'status', message: '⚡ Running instant mode...' });
-    const res = await callOpenRouter(
-      "google/gemma-4-26b-a4b-it", 
-      [{ role: 'user', content: userPrompt }], 
-      null, 
-      sessionStats.sandbox, 
-      "Instant", 
-      true
+    const { messages: instantMessages, rag } = await prepareRagMessages(
+      userPrompt,
+      contextMessages,
+      {
+        sessionStats,
+        agentRole: 'Instant',
+        onEvent
+      }
     );
-    return res?.content;
+      const res = await callOpenRouter(
+        "google/gemma-4-26b-it",
+        instantMessages,
+        null,
+        sessionStats.sandbox,
+        "Instant",
+        true
+      );
+      const content = finalizeRagResponse(res?.content, rag);
+      // Store conversation turn
+      await addMessage('orchestrator', sessionStats.sessionId, 'user', userPrompt);
+      await addMessage('orchestrator', sessionStats.sessionId, 'assistant', content);
+      return content;
   }
 
   if (level === 'Swarm' || level === 'Full' || level === 'Thinking') {
     if (onEvent) onEvent({ type: 'status', message: `🏢 Running ${level} mode...` });
     
-    const res = await callOpenRouter(
-      orchestrator.model, 
-      [{ role: 'user', content: userPrompt }], 
-      orchestrator.fallbackModel, 
-      sessionStats.sandbox, 
-      "CEO", 
-      true
+    const { messages: orchestratorMessages, rag } = await prepareRagMessages(
+      userPrompt,
+      contextMessages,
+      {
+        sessionStats,
+        agentRole: 'CEO',
+        onEvent
+      }
     );
-    return res?.content;
+      const res = await callOpenRouter(
+        orchestrator.model,
+        orchestratorMessages,
+        orchestrator.fallbackModel,
+        sessionStats.sandbox,
+        "CEO",
+        true
+      );
+      const content = finalizeRagResponse(res?.content, rag);
+      // Store conversation turn
+      await addMessage('orchestrator', sessionStats.sessionId, 'user', userPrompt);
+      await addMessage('orchestrator', sessionStats.sessionId, 'assistant', content);
+      return content;
   }
 
   throw new ValidationError(`Unknown intelligence level: ${level}`);
@@ -342,17 +591,24 @@ async function runSingleAgent(agentId, prompt, onEvent = null, sessionStats = {}
   logger.info({ agentId, agentRole: agent.role, prompt: prompt.substring(0, 100) }, 'Running single agent');
 
   if (onEvent) onEvent({ type: 'agent_start', agent: agent.role, task: prompt.substring(0, 50) });
+
+  const { messages, rag } = await prepareRagMessages(prompt, [], {
+    sessionStats,
+    agentId,
+    agentRole: agent.role,
+    onEvent
+  });
   
   const res = await callOpenRouter(
     agent.model, 
-    [{ role: 'user', content: prompt }], 
+    messages,
     agent.fallbackModel, 
     sessionStats.sandbox, 
     agent.role, 
     true
   );
   
-  return res?.content;
+  return finalizeRagResponse(res?.content, rag);
 }
 
 /**
@@ -374,6 +630,8 @@ module.exports = {
   orchestrate,
   runSingleAgent,
   callOpenRouter,
+  prepareRagMessages,
+  finalizeRagResponse,
   getCircuitBreakerStatus,
   resetCircuitBreaker,
   updateAnalytics

@@ -8,14 +8,26 @@
 
 const { loadSkills } = require('./plugins/loader.js');
 const { registry } = require('./plugins/registry.js');
+const knowledgeBaseManifest = require('./skills/knowledge-base/manifest.json');
+const knowledgeBaseSkill = require('./skills/knowledge-base.js');
 
 // Initialize plugin system on first require
 let initialized = false;
+const DEFAULT_DIRECTORY_SKILLS = ['terminal', 'url-fetch', 'web-search'];
 
 function init() {
   if (!initialized) {
-    loadSkills();
+    if (!DEFAULT_DIRECTORY_SKILLS.every(name => registry.has(name))) {
+      loadSkills();
+    }
+    loadBundledSkills();
     initialized = true;
+  }
+}
+
+function loadBundledSkills() {
+  if (!registry.has(knowledgeBaseManifest.name)) {
+    registry.register(knowledgeBaseManifest, knowledgeBaseSkill);
   }
 }
 
@@ -56,3 +68,5 @@ module.exports = {
   init,
   loadSkills
 };
+
+init();

@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orca-app
+  labels:
+    app: orca
+    component: app
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: orca
+      component: app
+  template:
+    metadata:
+      labels:
+        app: orca
+        component: app
+    spec:
+      containers:
+        - name: orca
+          image: orca:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+            - containerPort: 3001
+              name: websocket
+          envFrom:
+            - configMapRef:
+                name: orca-config
+            - secretRef:
+                name: orca-secrets
+          env:
+            - name: ORCA_DB_HOST
+              value: postgres-service
+            - name: ORCA_REDIS_URL
+              value: redis://redis-service:6379
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: sessions
+              mountPath: /app/sessions
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: orca-data-pvc
+        - name: sessions
+          emptyDir: {}

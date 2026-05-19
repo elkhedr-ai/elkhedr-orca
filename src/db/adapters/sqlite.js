@@ -27,7 +27,7 @@ class SQLiteAdapter extends DatabaseAdapter {
     }
 
     const dbPath = config.filename || path.join(process.cwd(), 'data', 'orca.db');
-    
+
     this.db = new Database(dbPath, {
       readonly: config.readonly || false,
       fileMustExist: config.fileMustExist || false
@@ -35,11 +35,11 @@ class SQLiteAdapter extends DatabaseAdapter {
 
     // Enable foreign key constraints
     this.db.pragma('foreign_keys = ON');
-    
+
     // Performance optimizations
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
-    
+
     this.connected = true;
   }
 
@@ -64,7 +64,7 @@ class SQLiteAdapter extends DatabaseAdapter {
     if (!this.connected) {
       throw new Error('Database not connected');
     }
-    
+
     const stmt = this.db.prepare(sql);
     return stmt.all(...params);
   }
@@ -79,29 +79,41 @@ class SQLiteAdapter extends DatabaseAdapter {
     if (!this.connected) {
       throw new Error('Database not connected');
     }
-    
+
     const stmt = this.db.prepare(sql);
     const result = stmt.run(...params);
-    
+
     return {
       lastInsertRowid: result.lastInsertRowid,
       changes: result.changes
     };
   }
 
-  /**
-   * Execute multiple statements in a transaction
-   * @param {Function} callback - Function that receives transaction object
-   * @returns {Promise<any>} Transaction result
-   */
-  async transaction(callback) {
-    if (!this.connected) {
-      throw new Error('Database not connected');
-    }
-    
-    const transaction = this.db.transaction(callback);
-    return transaction();
-  }
+   /**
+    * Execute multiple statements in a transaction
+    * @param {Function} callback - Function that receives transaction object
+    * @returns {Promise<any>} Transaction result
+    */
+   async transaction(callback) {
+     if (!this.connected) {
+       throw new Error('Database not connected');
+     }
+
+     // Start transaction manually
+     this.db.exec('BEGIN TRANSACTION');
+
+     try {
+       // Execute callback and wait if it returns a promise
+       const result = await callback();
+       // Commit transaction
+       this.db.exec('COMMIT');
+       return result;
+     } catch (error) {
+       // Rollback transaction on error
+       this.db.exec('ROLLBACK');
+       throw error;
+     }
+   }
 
   /**
    * Prepare a statement for repeated execution
@@ -112,9 +124,9 @@ class SQLiteAdapter extends DatabaseAdapter {
     if (!this.connected) {
       throw new Error('Database not connected');
     }
-    
+
     const stmt = this.db.prepare(sql);
-    
+
     // Wrap to provide consistent async interface
     return {
       get: async (...params) => stmt.get(...params),
@@ -165,18 +177,50 @@ class SQLiteAdapter extends DatabaseAdapter {
     return 'sqlite';
   }
 
-  /**
-   * Execute raw SQL (for migrations)
-   * @param {string} sql - Raw SQL
-   * @returns {Promise<void>}
-   */
-  async raw(sql) {
-    if (!this.connected) {
-      throw new Error('Database not connected');
-    }
-    
-    this.db.exec(sql);
-  }
+   /**
+    * Execute raw SQL (for migrations)
+    * @param {string} sql - Raw SQL
+    * @returns {Promise<void>}
+    */
+   async raw(sql) {
+     if (!this.connected) {
+       throw new Error('Database not connected');
+     }
+
+     this.db.exec(sql);
+   }
+
+   /**
+    * Run a SQL statement and return the result.
+    * @param {string} sql - SQL statement
+    * @param {Array} params - Query parameters
+    * @returns {Promise<Object>} Execution result with lastInsertRowid and changes
+    */
+   async run(sql, params = []) {
+     if (!this.connected) {
+       throw new Error('Database not connected');
+     }
+     const stmt = this.db.prepare(sql);
+     const result = stmt.run(...params);
+     return {
+       lastInsertRowid: result.lastInsertRowid,
+       changes: result.changes
+     };
+   }
+
+   /**
+    * Run a SQL query and return all results.
+    * @param {string} sql - SQL query
+    * @param {Array} params - Query parameters
+    * @returns {Promise<Array>} Query results
+    */
+   async all(sql, params = []) {
+     if (!this.connected) {
+       throw new Error('Database not connected');
+     }
+     const stmt = this.db.prepare(sql);
+     return stmt.all(...params);
+   }
 }
 
 module.exports = { SQLiteAdapter };

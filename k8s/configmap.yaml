@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orca-config
+data:
+  ORCA_PORT: "3000"
+  ORCA_HOST: "0.0.0.0"
+  ORCA_LOG_LEVEL: "info"
+  ORCA_DB_TYPE: "postgresql"
+  ORCA_DB_PORT: "5432"
+  ORCA_DB_NAME: "orca"
+  ORCA_DB_POOL_MIN: "2"
+  ORCA_DB_POOL_MAX: "10"
+  ORCA_SANDBOX: "true"
+  ORCA_MCP_ENABLED: "true"
+  ORCA_SWARM_ENABLED: "true"
+  ORCA_ANALYTICS_ENABLED: "true"

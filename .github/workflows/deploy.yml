@@ -1,0 +1,60 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'production' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+        env:
+          OPENROUTER_API_KEY: sk-test-key
+          ORCA_DB_URL: ':memory:'
+
+      - name: Build Docker image
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          docker build -t orca:${VERSION} -t orca:latest .
+
+      - name: Push to registry
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          VERSION=${GITHUB_REF#refs/tags/v}
+          docker tag orca:${VERSION} ${{ secrets.DOCKER_REGISTRY }}/orca:${VERSION}
+          docker tag orca:latest ${{ secrets.DOCKER_REGISTRY }}/orca:latest
+          docker push ${{ secrets.DOCKER_REGISTRY }}/orca:${VERSION}
+          docker push ${{ secrets.DOCKER_REGISTRY }}/orca:latest
+
+      - name: Deploy to Kubernetes
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          VERSION=${GITHUB_REF#refs/tags/v}
+          kubectl set image deployment/orca-app orca=${{ secrets.DOCKER_REGISTRY }}/orca:${VERSION} -n orca
+          kubectl rollout status deployment/orca-app -n orca --timeout=300s

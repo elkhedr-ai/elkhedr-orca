@@ -42,6 +42,22 @@ const envSchema = z.object({
   // OpenRouter settings
   ORCA_OPENROUTER_BASE_URL: z.string().default('https://openrouter.ai/api/v1'),
 
+  // Model registry and routing
+  ORCA_MODEL_HEALTH_INTERVAL_MS: z.string().default('60000'),
+  ORCA_MODEL_ROUTING_STRATEGY: z.enum(['balanced', 'cost', 'quality', 'latency']).default('balanced'),
+  ORCA_MODEL_MAX_FALLBACKS: z.string().default('3'),
+  ORCA_MODEL_LATENCY_BUDGET_MS: z.string().default('30000'),
+  ORCA_MODEL_FAILURE_THRESHOLD: z.string().default('1'),
+
+  // RAG / vector search
+  ORCA_RAG_ENABLED: z.string().default('true'),
+  ORCA_EMBEDDING_MODEL: z.string().default('local-hashing-v1'),
+  ORCA_VECTOR_DIMENSIONS: z.string().default('256'),
+  ORCA_RAG_LIMIT: z.string().default('3'),
+  ORCA_RAG_THRESHOLD: z.string().default('0.15'),
+  ORCA_RAG_MIN_CONFIDENCE: z.string().default('0.2'),
+  ORCA_RAG_AGENT_SCOPED: z.string().default('false'),
+
   // Analytics
   ORCA_ANALYTICS_ENABLED: z.string().default('true'),
   ORCA_ANALYTICS_RETENTION_DAYS: z.string().default('30'),
@@ -55,6 +71,24 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
+
+  // Encryption (required for production, auto-generated in dev)
+  ORCA_MASTER_KEY: z.string().min(32).optional(),
+  ORCA_KEY_ROTATION_ENABLED: z.string().default('false'),
+  ORCA_KEY_ROTATION_INTERVAL_DAYS: z.string().default('90'),
+
+  // TLS (optional, for HTTPS)
+  ORCA_TLS_CERT_PATH: z.string().optional(),
+  ORCA_TLS_KEY_PATH: z.string().optional(),
+  ORCA_TLS_ENABLED: z.string().default('false'),
+
+  // Sandbox
+  ORCA_SANDBOX_TYPE: z.enum(['none', 'filesystem', 'docker', 'chroot']).default('none'),
+  ORCA_SANDBOX_WORKSPACE: z.string().optional(),
+  ORCA_DOCKER_IMAGE: z.string().default('node:20-alpine'),
+  ORCA_SANDBOX_NETWORK_ENABLED: z.string().default('false'),
+  ORCA_SANDBOX_CPU_LIMIT: z.string().default('1.0'),
+  ORCA_SANDBOX_MEMORY_LIMIT: z.string().default('512m'),
 });
 
 module.exports = { envSchema };

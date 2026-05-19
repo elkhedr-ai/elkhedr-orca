@@ -1,0 +1,8 @@
+{
+  "name": "knowledge_base",
+  "description": "Store and retrieve knowledge items (markdown or code).",
+  "version": "1.0.0",
+  "permissions": ["read", "write"],
+  "author": "OpenCode Assistant",
+  "created": "2026-05-18"
+}
