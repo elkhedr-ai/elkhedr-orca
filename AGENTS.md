@@ -54,7 +54,7 @@ Tool schemas are defined in `skills.js:toolDefinitions` (lines 62-105) and injec
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **elkhedr-orca** (3774 symbols, 7148 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **elkhedr-orca** (3798 symbols, 7173 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
