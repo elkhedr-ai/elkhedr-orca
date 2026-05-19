@@ -139,6 +139,7 @@ async function buildServer(options = {}) {
   fastify.register(require('./routes/skills.js'), { prefix: '/api/v1' });
   fastify.register(require('./routes/billing.js'), { prefix: '/api/v1' });
   fastify.register(require('./routes/webhooks.js'), { prefix: '/api/v1' });
+  fastify.register(require('./routes/integrations.js'), { prefix: '/api/v1' });
 
   // Error handler
   fastify.setErrorHandler((error, request, reply) => {
