@@ -7,8 +7,28 @@ const { getDatabaseInstance } = require('../db');
 const { logger } = require('../utils/logger.js');
 
 const WARNING_THRESHOLD = 0.8; // 80%
-const DEFAULT_USER_QUOTA = 1000; // tokens
-const DEFAULT_TEAM_QUOTA = 10000;
+
+function getQuotaDefaults() {
+  try {
+    const { getConfig } = require('../config/index.js');
+    const cfg = getConfig();
+    return {
+      tokensLimit: parseInt(cfg.ORCA_QUOTA_DEFAULT_TOKENS_LIMIT, 10) || 1000000,
+      operationsLimit: parseInt(cfg.ORCA_QUOTA_DEFAULT_OPS_LIMIT, 10) || 1000,
+      costLimit: parseFloat(cfg.ORCA_QUOTA_DEFAULT_COST_LIMIT) || 10.0,
+      resetPeriod: cfg.ORCA_QUOTA_RESET_PERIOD || 'monthly',
+      enforcement: cfg.ORCA_QUOTA_ENFORCEMENT !== 'false'
+    };
+  } catch {
+    return {
+      tokensLimit: 1000000,
+      operationsLimit: 1000,
+      costLimit: 10.0,
+      resetPeriod: 'monthly',
+      enforcement: true
+    };
+  }
+}
 
 class QuotaManager {
   constructor() {
@@ -71,10 +91,11 @@ class QuotaManager {
     );
 
     if (rows.length === 0) {
-      // Create default quota
+      // Create default quota from config
+      const defaults = getQuotaDefaults();
       await db.getAdapter().execute(
-        "INSERT INTO quotas (user_id, quota_type, tokens_limit, operations_limit, cost_limit) VALUES (?, 'user', ?, ?, ?)",
-        [userId, DEFAULT_USER_QUOTA, 100, 10.0]
+        "INSERT INTO quotas (user_id, quota_type, tokens_limit, operations_limit, cost_limit, reset_period) VALUES (?, 'user', ?, ?, ?, ?)",
+        [userId, defaults.tokensLimit, defaults.operationsLimit, defaults.costLimit, defaults.resetPeriod]
       );
       return this.getUserQuota(userId);
     }
@@ -163,7 +184,24 @@ class QuotaManager {
   async checkQuota(userId, options = {}) {
     const { requireTokens = 0, requireCost = 0, adminOverride = false } = options;
 
+    // Admin override — explicit or via user context
     if (adminOverride) return { allowed: true, quota: null };
+
+    // Auto-detect admin from auth context
+    try {
+      const { getUserContext } = require('../auth/context.js');
+      const ctx = getUserContext();
+      if (ctx && ctx.userRole === 'admin') {
+        return { allowed: true, quota: null };
+      }
+    } catch { /* auth context not available */ }
+
+    // Check if enforcement is disabled
+    const defaults = getQuotaDefaults();
+    if (!defaults.enforcement) {
+      const quota = await this.getUserQuota(userId);
+      return { allowed: true, quota };
+    }
 
     const quota = await this.getUserQuota(userId);
 
@@ -283,5 +321,6 @@ function getQuotaManager() {
 module.exports = {
   QuotaManager,
   getQuotaManager,
+  getQuotaDefaults,
   WARNING_THRESHOLD
 };

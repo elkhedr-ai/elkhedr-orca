@@ -68,6 +68,13 @@ const envSchema = z.object({
   ORCA_ANALYTICS_ENABLED: z.string().default('true'),
   ORCA_ANALYTICS_RETENTION_DAYS: z.string().default('30'),
 
+  // Quotas & Billing
+  ORCA_QUOTA_DEFAULT_TOKENS_LIMIT: z.string().default('1000000'),
+  ORCA_QUOTA_DEFAULT_OPS_LIMIT: z.string().default('1000'),
+  ORCA_QUOTA_DEFAULT_COST_LIMIT: z.string().default('10'),
+  ORCA_QUOTA_RESET_PERIOD: z.enum(['daily', 'weekly', 'monthly']).default('monthly'),
+  ORCA_QUOTA_ENFORCEMENT: z.string().default('true'),
+
   // Features
   ORCA_MCP_ENABLED: z.string().default('true'),
   ORCA_SWARM_ENABLED: z.string().default('true'),

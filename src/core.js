@@ -29,6 +29,8 @@ const { getUserContext } = require('./auth/context');
 const { queryWithRag, extractCitations } = require('./rag/prompts.js');
 const { getModelRegistry } = require('./models/registry.js');
 const { getLocalModelClient } = require('./models/local.js');
+const { getQuotaManager } = require('./billing/quotas.js');
+const { calculateCost } = require('./billing/pricing.js');
 
 // Load and validate configuration on module initialization
 loadConfig();
@@ -103,6 +105,45 @@ if (LOCAL_MODEL_ENABLED) {
   }).catch(err => {
     logger.warn({ error: err.message }, 'Local model auto-discovery failed on startup');
   });
+}
+
+/**
+ * Track usage in quota system (non-blocking)
+ */
+async function trackQuotaUsage(tokens, cost, model) {
+  try {
+    const { userId } = getUserContext();
+    if (!userId) return;
+    const quotaManager = getQuotaManager();
+    await quotaManager.trackUsage(userId, {
+      tokens,
+      cost,
+      operationType: 'agent_call',
+      model
+    });
+  } catch (e) {
+    logger.warn({ error: e.message }, 'Failed to track quota usage');
+  }
+}
+
+/**
+ * Check quota before API call — returns { allowed, reason, quota } or throws
+ */
+async function checkQuotaBeforeCall() {
+  try {
+    const { userId } = getUserContext();
+    if (!userId) return { allowed: true };
+    const quotaManager = getQuotaManager();
+    const result = await quotaManager.checkQuota(userId);
+    if (!result.allowed) {
+      throw new APIError(result.reason || 'Quota exceeded', { quota: result.quota });
+    }
+    return result;
+  } catch (e) {
+    if (e instanceof APIError) throw e;
+    logger.warn({ error: e.message }, 'Quota check failed, allowing request');
+    return { allowed: true };
+  }
 }
 
 /**
@@ -375,9 +416,10 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
       if (response.data?.choices?.[0]) {
         const choice = response.data.choices[0];
         const tokens = response.data.usage?.total_tokens || 0;
-        const cost = (tokens / 1000000) * 0.5;
-        
+        const cost = calculateCost(tokens, targetModel);
+
         await updateAnalytics(agentRole, tokens, cost);
+        await trackQuotaUsage(tokens, cost, targetModel);
         log.info({ tokens, cost }, 'API call successful');
         
         // Handle Tool Calls
@@ -498,7 +540,7 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
 
     if (res) {
       const tokens = res.usage?.total_tokens || 0;
-      const cost = (tokens / 1000000) * 0.5;
+      const cost = calculateCost(tokens, modelConfig.model);
       modelRegistry.recordModelSuccess(modelConfig.model, {
         latency: res.latency,
         tokens,
@@ -528,6 +570,15 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
     promptSchema.parse(userPrompt);
   } catch (e) {
     throw new ValidationError('Invalid prompt', { errors: e.errors });
+  }
+
+  // Check quota before proceeding
+  const quotaResult = await checkQuotaBeforeCall();
+  const quotaWarning = quotaResult.quota?.status === 'warning'
+    ? `Warning: You have used ${(quotaResult.quota.highestPercent * 100).toFixed(0)}% of your quota.`
+    : null;
+  if (quotaWarning && onEvent) {
+    onEvent({ type: 'quota_warning', message: quotaWarning });
   }
 
   let level = sessionStats.level || 'Auto';
@@ -643,12 +694,15 @@ async function runSingleAgent(agentId, prompt, onEvent = null, sessionStats = {}
   if (!Number.isInteger(agentId) || agentId < 1) {
     throw new ValidationError('Invalid agent ID', { agentId });
   }
-  
+
   try {
     promptSchema.parse(prompt);
   } catch (e) {
     throw new ValidationError('Invalid prompt', { errors: e.errors });
   }
+
+  // Check quota before proceeding
+  await checkQuotaBeforeCall();
 
   const agent = agentsData.agents.find(a => a.id === agentId);
   if (!agent) {
