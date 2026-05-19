@@ -1,0 +1,1788 @@
+openapi: 3.0.3
+info:
+  title: Orca API
+  version: 1.1.0
+  description: |-
+    Multi-Agent Orchestration System API
+
+    Manage agents, sessions, analytics, billing, webhooks, alerts, backups, and more.
+  contact:
+    name: Elkhedr
+    url: https://github.com/ekagent/elkhedr-orca
+servers:
+  - url: /api/v1
+    description: API v1
+tags:
+  - name: Health
+    description: Server health and readiness
+  - name: Auth
+    description: User authentication and registration
+  - name: Users
+    description: User management
+  - name: Agents
+    description: Agent lifecycle management
+  - name: Sessions
+    description: Session tracking
+  - name: Analytics
+    description: Usage statistics
+  - name: Skills
+    description: Plugin/skill registry
+  - name: Billing
+    description: Quota and billing
+  - name: Webhooks
+    description: Webhook subscriptions
+  - name: Alerts
+    description: Alert rules and notifications
+  - name: Backups
+    description: Database backup management
+paths:
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Liveness check
+      tags:
+        - Health
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - uptime
+                  - timestamp
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                  uptime:
+                    type: number
+                  timestamp:
+                    type: string
+                    format: date-time
+      x-code-samples:
+        - lang: curl
+          source: curl http://localhost:3000/health
+        - lang: JavaScript
+          source: fetch(\x27http://localhost:3000/health\x27).then(r=>r.json()).then(console.log)
+        - lang: Python
+          source: import requests; print(requests.get(\x27http://localhost:3000/health\x27).json())
+  /ready:
+    get:
+      operationId: readinessCheck
+      summary: Readiness probe
+      tags:
+        - Health
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ready:
+                    type: boolean
+                    enum:
+                      - true
+        "503":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ready:
+                    type: boolean
+                    enum:
+                      - false
+  /auth/register:
+    post:
+      operationId: registerUser
+      summary: Register user
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                  format: password
+                role:
+                  type: string
+                  enum:
+                    - user
+                    - manager
+                    - admin
+                    - guest
+                  default: user
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  token:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /auth/login:
+    post:
+      operationId: loginUser
+      summary: Login
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - usernameOrEmail
+                - password
+              properties:
+                usernameOrEmail:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      summary: Logout
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      summary: Get current user
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+  /users/{id}/role:
+    patch:
+      operationId: updateUserRole
+      summary: Update user role
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+              properties:
+                role:
+                  type: string
+                  enum:
+                    - admin
+                    - manager
+                    - user
+                    - guest
+      responses:
+        "200":
+          description: Role updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /agents:
+    get:
+      operationId: listAgents
+      summary: List agents
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: department
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by department
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+          description: Max items
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Offset
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AgentSummary"
+    post:
+      operationId: createAgent
+      summary: Create agent
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - role
+                - model
+              properties:
+                name:
+                  type: string
+                role:
+                  type: string
+                model:
+                  type: string
+                fallbackModel:
+                  type: string
+                department:
+                  type: string
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent:
+                    $ref: "#/components/schemas/Agent"
+  /agents/{id}:
+    get:
+      operationId: getAgent
+      summary: Get agent
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Agent ID
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent:
+                    $ref: "#/components/schemas/Agent"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateAgent
+      summary: Update agent
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Agent ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                model:
+                  type: string
+                fallbackModel:
+                  type: string
+                department:
+                  type: string
+                active:
+                  type: boolean
+      responses:
+        "200":
+          description: Agent updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteAgent
+      summary: Delete agent
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Agent ID
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    enum:
+                      - true
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /agents/{id}/status:
+    get:
+      operationId: getAgentStatus
+      summary: Get agent status
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Agent ID
+      responses:
+        "200":
+          description: Agent health status
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List sessions
+      tags:
+        - Sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+          description: Max items
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Offset
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Session"
+    post:
+      operationId: createSession
+      summary: Create session
+      tags:
+        - Sessions
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+                - mode
+                - agent
+                - result
+              properties:
+                prompt:
+                  type: string
+                mode:
+                  type: string
+                  enum:
+                    - auto
+                    - instant
+                    - thinking
+                    - swarm
+                agent:
+                  type: string
+                result:
+                  type: string
+                tokens:
+                  type: integer
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    $ref: "#/components/schemas/Session"
+  /sessions/{id}:
+    get:
+      operationId: getSession
+      summary: Get session
+      tags:
+        - Sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Session ID
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteSession
+      summary: Delete session
+      tags:
+        - Sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Session ID
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    enum:
+                      - true
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /analytics:
+    get:
+      operationId: getAnalyticsSummary
+      summary: Analytics summary
+      tags:
+        - Analytics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analytics:
+                    $ref: "#/components/schemas/AnalyticsSummary"
+  /analytics/daily:
+    get:
+      operationId: getDailyAnalytics
+      summary: Get daily analytics
+      tags:
+        - Analytics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+          description: Items
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  daily:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AnalyticsRecord"
+  /analytics/weekly:
+    get:
+      operationId: getWeeklyAnalytics
+      summary: Get weekly analytics
+      tags:
+        - Analytics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 12
+          description: Items
+      responses:
+        "200":
+          description: weekly analytics data
+  /analytics/monthly:
+    get:
+      operationId: getMonthlyAnalytics
+      summary: Get monthly analytics
+      tags:
+        - Analytics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 12
+          description: Items
+      responses:
+        "200":
+          description: monthly analytics data
+  /skills:
+    get:
+      operationId: listSkills
+      summary: List skills
+      tags:
+        - Skills
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  skills:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Skill"
+    post:
+      operationId: createSkill
+      summary: Create skill
+      tags:
+        - Skills
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - version
+              properties:
+                name:
+                  type: string
+                version:
+                  type: string
+                description:
+                  type: string
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  skill:
+                    $ref: "#/components/schemas/Skill"
+        "409":
+          description: Skill name conflict
+  /skills/{id}:
+    get:
+      operationId: getSkill
+      summary: Get skill
+      tags:
+        - Skills
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Skill ID
+      responses:
+        "200":
+          description: Skill details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteSkill
+      summary: Delete skill
+      tags:
+        - Skills
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Skill ID
+      responses:
+        "200":
+          description: Skill deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /billing/quotas/me:
+    get:
+      operationId: getMyQuota
+      summary: Get my quota
+      tags:
+        - Billing
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quota:
+                    $ref: "#/components/schemas/Quota"
+  /billing/quotas/{userId}:
+    get:
+      operationId: getUserQuota
+      summary: Get user quota
+      tags:
+        - Billing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quota:
+                    $ref: "#/components/schemas/Quota"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      operationId: updateQuota
+      summary: Update quota
+      tags:
+        - Billing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tokensLimit:
+                  type: integer
+                operationsLimit:
+                  type: integer
+                costLimit:
+                  type: number
+      responses:
+        "200":
+          description: Quota updated
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /billing/quotas/{userId}/reset:
+    post:
+      operationId: resetQuota
+      summary: Reset quota
+      tags:
+        - Billing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      responses:
+        "200":
+          description: Quota reset
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /billing/usage/me:
+    get:
+      operationId: getMyUsage
+      summary: Get usage history
+      tags:
+        - Billing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+          description: Days
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  usage:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UsageRecord"
+                  days:
+                    type: integer
+  /webhooks:
+    get:
+      operationId: listWebhooks
+      summary: List webhooks
+      tags:
+        - Webhooks
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Webhook"
+    post:
+      operationId: createWebhook
+      summary: Create webhook
+      tags:
+        - Webhooks
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+                - events
+              properties:
+                url:
+                  type: string
+                  format: uri
+                events:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                description:
+                  type: string
+                headers:
+                  type: object
+                maxRetries:
+                  type: integer
+                  minimum: 0
+                  maximum: 10
+                  default: 3
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhook:
+                    $ref: "#/components/schemas/Webhook"
+  /webhooks/stats:
+    get:
+      operationId: getWebhookStats
+      summary: Webhook stats
+      tags:
+        - Webhooks
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stats:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      successful:
+                        type: integer
+                      failed:
+                        type: integer
+  /webhooks/{webhookId}:
+    get:
+      operationId: getWebhook
+      summary: Get webhook
+      tags:
+        - Webhooks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Webhook ID
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhook:
+                    $ref: "#/components/schemas/Webhook"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateWebhook
+      summary: Update webhook
+      tags:
+        - Webhooks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Webhook ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  format: uri
+                events:
+                  type: array
+                  items:
+                    type: string
+                active:
+                  type: boolean
+                description:
+                  type: string
+                headers:
+                  type: object
+                maxRetries:
+                  type: integer
+                  minimum: 0
+                  maximum: 10
+      responses:
+        "200":
+          description: Webhook updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteWebhook
+      summary: Delete webhook
+      tags:
+        - Webhooks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Webhook ID
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    enum:
+                      - true
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /webhooks/{webhookId}/deliveries:
+    get:
+      operationId: getWebhookDeliveries
+      summary: Webhook deliveries
+      tags:
+        - Webhooks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Webhook ID
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: Items
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Offset
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deliveries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WebhookDelivery"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /alerts/rules:
+    get:
+      operationId: listAlertRules
+      summary: List alert rules
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertRule"
+  /alerts/rules/{ruleId}:
+    patch:
+      operationId: updateAlertRule
+      summary: Update alert rule
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Rule ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                threshold:
+                  type: number
+                severity:
+                  type: string
+                  enum:
+                    - info
+                    - warning
+                    - critical
+                channels:
+                  type: array
+                  items:
+                    type: string
+                cooldown:
+                  type: integer
+      responses:
+        "200":
+          description: Rule updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /alerts/history:
+    get:
+      operationId: getAlertHistory
+      summary: Alert history
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - info
+              - warning
+              - critical
+          description: Filter by severity
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - firing
+              - resolved
+          description: Filter by status
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+          description: Items
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Alert"
+  /alerts/active:
+    get:
+      operationId: getActiveAlerts
+      summary: Active alerts
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Alert"
+  /alerts/evaluate:
+    post:
+      operationId: evaluateAlerts
+      summary: Evaluate alerts
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  evaluated:
+                    type: boolean
+                    enum:
+                      - true
+  /alerts/channels:
+    get:
+      operationId: listAlertChannels
+      summary: List alert channels
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channels:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertChannel"
+    post:
+      operationId: createAlertChannel
+      summary: Create channel
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum:
+                    - webhook
+                    - email
+                    - pagerduty
+                url:
+                  type: string
+                  format: uri
+                to:
+                  type: array
+                  items:
+                    type: string
+                    format: email
+                routingKey:
+                  type: string
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channel:
+                    $ref: "#/components/schemas/AlertChannel"
+  /backups:
+    get:
+      operationId: listBackups
+      summary: List backups
+      tags:
+        - Backups
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: Items
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backups:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Backup"
+                  total:
+                    type: integer
+                  backupDir:
+                    type: string
+    post:
+      operationId: createBackup
+      summary: Create backup
+      tags:
+        - Backups
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - sqlite
+                    - postgresql
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backup:
+                    $ref: "#/components/schemas/Backup"
+                  message:
+                    type: string
+  /backups/status:
+    get:
+      operationId: getBackupStatus
+      summary: Backup status
+      tags:
+        - Backups
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: object
+                    properties:
+                      lastBackup:
+                        $ref: "#/components/schemas/Backup"
+                      totalBackups:
+                        type: integer
+                      backupDir:
+                        type: string
+                      retentionDays:
+                        type: integer
+                      isRunning:
+                        type: boolean
+                      schedulerActive:
+                        type: boolean
+  /backups/rotate:
+    post:
+      operationId: rotateBackups
+      summary: Rotate backups
+      tags:
+        - Backups
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removed:
+                    type: integer
+                  remaining:
+                    type: integer
+                  retentionDays:
+                    type: integer
+  /backups/scheduler:
+    post:
+      operationId: toggleBackupScheduler
+      summary: Toggle scheduler
+      tags:
+        - Backups
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action
+              properties:
+                action:
+                  type: string
+                  enum:
+                    - start
+                    - stop
+                intervalHours:
+                  type: integer
+                  minimum: 1
+                  maximum: 168
+                  default: 24
+      responses:
+        "200":
+          description: Scheduler state updated
+  /backups/{filename}:
+    get:
+      operationId: getBackupDetails
+      summary: Get backup details
+      tags:
+        - Backups
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Backup filename
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backup:
+                    $ref: "#/components/schemas/Backup"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            - admin
+            - manager
+            - user
+            - guest
+        created_at:
+          type: string
+          format: date-time
+    AgentSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+        model:
+          type: string
+        department:
+          type: string
+    Agent:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+        model:
+          type: string
+        fallbackModel:
+          type: string
+        department:
+          type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+        prompt:
+          type: string
+        mode:
+          type: string
+          enum:
+            - auto
+            - instant
+            - thinking
+            - swarm
+        agent:
+          type: string
+        result:
+          type: string
+        tokens:
+          type: integer
+        traceId:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    AnalyticsSummary:
+      type: object
+      properties:
+        totalOperations:
+          type: integer
+        totalTokens:
+          type: integer
+        totalCost:
+          type: number
+        agentUsage:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              calls:
+                type: integer
+              tokens:
+                type: integer
+              cost:
+                type: number
+    AnalyticsRecord:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        total_operations:
+          type: integer
+        total_tokens:
+          type: integer
+        total_cost:
+          type: number
+    Skill:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+    Quota:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        tokensLimit:
+          type: integer
+        operationsLimit:
+          type: integer
+        costLimit:
+          type: number
+        tokensUsed:
+          type: integer
+        operationsUsed:
+          type: integer
+        costUsed:
+          type: number
+    UsageRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        tokens:
+          type: integer
+        cost:
+          type: number
+        operation:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+        description:
+          type: string
+        maxRetries:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    WebhookDelivery:
+      type: object
+      properties:
+        id:
+          type: integer
+        webhookId:
+          type: integer
+        event:
+          type: string
+        url:
+          type: string
+          format: uri
+        statusCode:
+          type: integer
+        success:
+          type: boolean
+        retryCount:
+          type: integer
+        error:
+          type: string
+        delivered_at:
+          type: string
+          format: date-time
+    AlertRule:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        metric:
+          type: string
+        condition:
+          type: string
+        threshold:
+          type: number
+        severity:
+          type: string
+          enum:
+            - info
+            - warning
+            - critical
+        channels:
+          type: array
+          items:
+            type: string
+        cooldown:
+          type: integer
+        enabled:
+          type: boolean
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+        ruleId:
+          type: string
+        name:
+          type: string
+        severity:
+          type: string
+        status:
+          type: string
+          enum:
+            - firing
+            - resolved
+        message:
+          type: string
+        firedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+    AlertChannel:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - webhook
+            - email
+            - pagerduty
+        url:
+          type: string
+          format: uri
+        to:
+          type: array
+          items:
+            type: string
+            format: email
+        routingKey:
+          type: string
+    Backup:
+      type: object
+      properties:
+        filename:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+        type:
+          type: string
+        checksum:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+  responses:
+    BadRequest:
+      description: Bad request - invalid or missing parameters
+    Unauthorized:
+      description: Unauthorized - valid authentication required
+    Forbidden:
+      description: Forbidden - insufficient permissions
+    NotFound:
+      description: Resource not found

@@ -37,8 +37,16 @@ async function buildServer(options = {}) {
   });
 
   // Swagger/OpenAPI documentation
-  await fastify.register(require('@fastify/swagger'), {
-    openapi: {
+  const fs = require('fs');
+  const YAML = require('yaml');
+  const path = require('path');
+
+  let openapiSpec;
+  const specPath = path.join(__dirname, '../../docs/openapi.yaml');
+  if (fs.existsSync(specPath)) {
+    openapiSpec = YAML.parse(fs.readFileSync(specPath, 'utf8'));
+  } else {
+    openapiSpec = {
       info: {
         title: 'Orca API',
         description: 'Multi-Agent Orchestration System API',
@@ -47,26 +55,27 @@ async function buildServer(options = {}) {
       servers: [{ url: '/api/v1' }],
       components: {
         securitySchemes: {
-          bearerAuth: {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT'
-          },
-          apiKeyAuth: {
-            type: 'apiKey',
-            in: 'header',
-            name: 'X-API-Key'
-          }
+          bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+          apiKeyAuth: { type: 'apiKey', in: 'header', name: 'X-API-Key' }
         }
       }
-    }
+    };
+  }
+
+  await fastify.register(require('@fastify/swagger'), {
+    mode: 'static',
+    specification: { document: openapiSpec }
   });
 
   await fastify.register(require('@fastify/swagger-ui'), {
     routePrefix: '/docs',
     uiConfig: {
       docExpansion: 'list',
-      deepLinking: false
+      deepLinking: true,
+      displayRequestDuration: true,
+      filter: true,
+      syntaxHighlight: { theme: 'monokai' },
+      tryItOutEnabled: true
     }
   });
 
@@ -94,7 +103,7 @@ async function buildServer(options = {}) {
     }
 
     // Public routes don't need auth
-    const publicRoutes = ['/api/v1/auth/login', '/api/v1/auth/register', '/health', '/docs', '/docs/*'];
+    const publicRoutes = ['/api/v1/auth/login', '/api/v1/auth/register', '/health', '/docs', '/docs/', '/documentation', '/documentation/'];
     if (publicRoutes.some(route => request.url.startsWith(route.replace('*', '')))) {
       return;
     }
@@ -130,8 +139,7 @@ async function buildServer(options = {}) {
     return payload;
   });
 
-  // Register routes
-  fastify.register(require('./routes/health.js'), { prefix: '' });
+  // Register routes (health is registered separately below)
   fastify.register(require('./routes/agents.js'), { prefix: '/api/v1' });
   fastify.register(require('./routes/sessions.js'), { prefix: '/api/v1' });
   fastify.register(require('./routes/analytics.js'), { prefix: '/api/v1' });
@@ -145,12 +153,8 @@ async function buildServer(options = {}) {
   fastify.register(require('./routes/alerts.js'), { prefix: '/api/v1' });
   fastify.register(require('./routes/backups.js'), { prefix: '/api/v1' });
 
-  // Health, readiness, and metrics (no auth required)
+  // Health and readiness endpoints (no auth required)
   fastify.register(require('./health.js'));
-  fastify.register(async (f) => {
-    const { metricsRoutes } = require('./metrics.js');
-    f.register(metricsRoutes);
-  });
 
   // Error handler
   fastify.setErrorHandler((error, request, reply) => {

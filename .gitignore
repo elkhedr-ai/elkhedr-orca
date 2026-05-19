@@ -18,4 +18,5 @@ Thumbs.db
 test-results/
 coverage/
 .gemini/
+.claude/
 logs/
