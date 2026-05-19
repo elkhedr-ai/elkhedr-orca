@@ -89,6 +89,43 @@ const audioTranscribeSchema = z.object({
   message: 'Either audio_path or audio_url is required'
 });
 
+// Swarm schemas
+const aggregationStrategySchema = z.enum(['voting', 'best-of-n', 'synthesis']);
+
+const swarmAgentSchema = z.object({
+  agentId: z.number().int().positive(),
+  role: z.string().min(1).max(200),
+  model: z.string().min(1).optional()
+});
+
+const swarmPlanSchema = z.object({
+  task: z.string().min(1).max(5000),
+  agents: z.array(swarmAgentSchema).min(1).max(10),
+  strategy: aggregationStrategySchema.optional().default('voting'),
+  timeout: z.number().int().min(1000).max(120000).optional().default(30000),
+  sandbox: z.boolean().optional().default(false)
+});
+
+const swarmResultSchema = z.object({
+  result: z.string(),
+  agentResults: z.array(z.object({
+    agentId: z.number(),
+    role: z.string(),
+    output: z.string()
+  })),
+  strategy: aggregationStrategySchema,
+  conflicts: z.array(z.object({
+    type: z.string(),
+    agents: z.array(z.number()),
+    description: z.string()
+  })),
+  metadata: z.object({
+    agentCount: z.number(),
+    successfulCount: z.number(),
+    failedCount: z.number()
+  })
+});
+
 module.exports = {
   promptSchema,
   agentSchema,
@@ -99,5 +136,9 @@ module.exports = {
   fetchUrlSchema,
   configFileSchema,
   imageAnalysisSchema,
-  audioTranscribeSchema
+  audioTranscribeSchema,
+  aggregationStrategySchema,
+  swarmAgentSchema,
+  swarmPlanSchema,
+  swarmResultSchema
 };

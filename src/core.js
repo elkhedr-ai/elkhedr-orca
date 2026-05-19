@@ -656,7 +656,7 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
       return content;
   }
 
-  if (level === 'Swarm' || level === 'Full' || level === 'Thinking') {
+  if (level === 'Thinking') {
     if (onEvent) onEvent({ type: 'status', message: `🏢 Running ${level} mode...` });
     
     const { messages: orchestratorMessages, rag } = await prepareRagMessages(
@@ -681,6 +681,24 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
       await addMessage('orchestrator', sessionStats.sessionId, 'user', userPrompt);
       await addMessage('orchestrator', sessionStats.sessionId, 'assistant', content);
       return content;
+  }
+
+  if (level === 'Swarm' || level === 'Full') {
+    if (onEvent) onEvent({ type: 'status', message: `🐝 Running ${level} mode with parallel agents...` });
+
+    const swarm = require('./swarm/index.js');
+    swarm.init(callOpenRouter);
+
+    const result = await swarm.executeTask(userPrompt, {
+      onEvent,
+      sessionStats,
+      strategy: level === 'Full' ? 'synthesis' : undefined
+    });
+
+    // Store conversation turn
+    await addMessage('orchestrator', sessionStats.sessionId, 'user', userPrompt);
+    await addMessage('orchestrator', sessionStats.sessionId, 'assistant', result.finalResult);
+    return result.finalResult;
   }
 
   throw new ValidationError(`Unknown intelligence level: ${level}`);

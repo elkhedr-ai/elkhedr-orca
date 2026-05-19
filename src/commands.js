@@ -196,6 +196,11 @@ class CommandRegistry {
                 description: 'Show streaming server status and connected clients',
                 execute: () => this.showStreamStatus()
             },
+            '/swarm': {
+                label: 'Swarm Mode',
+                description: 'Execute a task using parallel agent swarm with automated decomposition',
+                execute: (args) => this.executeSwarm(args)
+            },
             '/exit': {
                 label: 'Exit',
                 description: 'Terminate the Orca session',
@@ -1229,6 +1234,45 @@ class CommandRegistry {
             
             console.log('\n' + chalk.bold('Connected Clients:'));
             console.log(clientTable.toString());
+        }
+    }
+
+    async executeSwarm(args) {
+        const prompt = args.join(' ');
+        if (!prompt) {
+            log.error('Usage: /swarm <task description>');
+            return;
+        }
+
+        const s = spinner();
+        s.start('Initializing swarm...');
+
+        try {
+            const swarm = require('./swarm/index.js');
+            const { orchestrate } = require('./core.js');
+            swarm.init(orchestrate);
+
+            s.message('Decomposing task and dispatching agents...');
+            
+            const result = await swarm.executeTask(prompt, {
+                onEvent: null,
+                sessionStats: this.sessionStats || { sandbox: false },
+                strategy: null
+            });
+
+            s.stop('Swarm complete!');
+
+            console.log(boxen(
+                `${chalk.bold.white('SWARM RESULT')}\n\n` +
+                `${chalk.cyan('Strategy:')} ${result.meta?.strategy || 'auto'}\n` +
+                `${chalk.cyan('Agents:')} ${result.meta?.numAgents || 0}\n` +
+                `${chalk.cyan('Duration:')} ${result.meta?.duration || 'N/A'}\n\n` +
+                `${result.finalResult}`,
+                { padding: 1, borderColor: 'cyan', title: ' AGENT SWARM ', titleAlignment: 'center' }
+            ));
+        } catch (err) {
+            s.stop('Swarm failed');
+            log.error(`Swarm error: ${err.message}`);
         }
     }
 }

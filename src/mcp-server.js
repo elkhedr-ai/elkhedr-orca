@@ -132,6 +132,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: "object",
           properties: {}
         },
+      },
+      {
+        name: "orca_execute_swarm",
+        description: "Execute a task using parallel swarm of specialized agents with automated decomposition and aggregation.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            prompt: { type: "string", description: "The task to execute with the swarm" },
+            strategy: { type: "string", enum: ["voting", "best-of-n", "synthesis"], description: "Aggregation strategy (default: auto-select)" },
+            sandbox: { type: "boolean", description: "Enable sandbox mode", default: true }
+          },
+          required: ["prompt"]
+        },
       }
     ],
   };
@@ -249,6 +262,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         
         return {
           content: [{ type: "text", text: JSON.stringify(health, null, 2) }],
+        };
+      }
+
+      case "orca_execute_swarm": {
+        const { prompt, strategy, sandbox = true } = args;
+        const swarm = require('./swarm/index.js');
+        swarm.init(orchestrate);
+        
+        const result = await swarm.executeTask(prompt, {
+          onEvent: null,
+          sessionStats: { sandbox },
+          strategy
+        });
+        
+        return {
+          content: [{ type: "text", text: result.finalResult }],
         };
       }
       
