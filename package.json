@@ -25,7 +25,10 @@
     "db:migrate:make": "node -e \"const name = process.argv[2]; if (!name) { console.error('Usage: npm run db:migrate:make <name>'); process.exit(1); } require('./src/db/init.js').createMigration(name).catch(console.error)\"",
     "db:backup": "bash scripts/backup.sh",
     "db:restore": "bash scripts/restore.sh",
-    "db:backup:list": "ls -lh backups/db/ 2>/dev/null || echo 'No backups found'"
+    "db:backup:list": "ls -lh backups/db/ 2>/dev/null || echo 'No backups found'",
+    "test:load": "bash tests/load/run.sh smoke",
+    "test:load:full": "bash tests/load/run.sh full",
+    "test:benchmark": "node tests/load/benchmark.js"
   },
   "keywords": [
     "ai",
@@ -73,6 +76,7 @@
     "graphql-subscriptions": "^3.0.0",
     "graphql-tag": "^2.12.6",
     "graphql-ws": "^6.0.8",
+    "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
     "knex": "^3.2.10",
     "ora": "^5.4.1",
