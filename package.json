@@ -3,6 +3,7 @@
   "version": "1.1.0",
   "description": "Multi-Agent Orchestration System with 100 specialized AI agents",
   "main": "src/index.js",
+  "types": "types/index.d.ts",
   "bin": {
     "orca": "src/index.js",
     "mcp-orca": "src/mcp-server.js"

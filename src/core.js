@@ -339,7 +339,16 @@ function finalizeRagResponse(content, rag) {
 }
 
 /**
- * Make an API call to OpenRouter with retry logic
+ * Make an API call to OpenRouter with retry logic, circuit breaker, and model fallback.
+ *
+ * @param {string} model - Primary model identifier (e.g., 'openai/gpt-4o')
+ * @param {Array<Object>} messages - Conversation messages array
+ * @param {string|null} fallbackModel - Fallback model if primary fails
+ * @param {boolean} sandbox - Whether to inject sandbox system prompt
+ * @param {string} agentRole - Agent role for analytics tracking
+ * @param {boolean} useTools - Whether to include tool definitions
+ * @returns {Promise<Object>} Response with { content, usage, model, latency }
+ * @throws {APIError} If all models in the fallback chain fail
  */
 async function callOpenRouter(model, messages, fallbackModel = null, sandbox = false, agentRole = "Orchestrator", useTools = false) {
   const traceId = `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -591,7 +600,18 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
 }
 
 /**
- * Main orchestration function
+ * Main orchestration function. Routes user prompts through the appropriate
+ * intelligence level (Instant, Thinking, Swarm, or Auto).
+ *
+ * @param {string} userPrompt - The user's input text
+ * @param {function|null} onEvent - Optional callback for streaming events
+ * @param {Object} sessionStats - Session configuration
+ * @param {string} [sessionStats.level='Auto'] - Intelligence level: 'Auto', 'Instant', 'Thinking', 'Swarm'
+ * @param {boolean} [sessionStats.sandbox=false] - Restrict operations to sandbox directory
+ * @param {string|null} [sessionStats.currentAgent=null] - Direct agent mode (bypasses orchestration)
+ * @returns {Promise<string>} The agent's response text
+ * @throws {ValidationError} If prompt fails schema validation
+ * @throws {APIError} If all models fail to respond
  */
 async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
   // Validate input
@@ -735,6 +755,16 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
 
 /**
  * Run a single agent directly
+ */
+/**
+ * Run a single agent directly, bypassing the orchestration router.
+ *
+ * @param {string|number} agentId - Agent ID or role name from agents.json
+ * @param {string} prompt - The user's input text
+ * @param {function|null} onEvent - Optional callback for streaming events
+ * @param {Object} sessionStats - Session configuration
+ * @returns {Promise<string>} The agent's response text
+ * @throws {AgentError} If the specified agent is not found
  */
 async function runSingleAgent(agentId, prompt, onEvent = null, sessionStats = {}) {
   // Validate inputs
