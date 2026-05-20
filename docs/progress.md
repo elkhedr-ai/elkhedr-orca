@@ -35,6 +35,9 @@
 - `scripts/register-admin.js` — New: admin registration CLI
 - `scripts/setup-backup-cron.sh` — New: cron installer
 
+### Launch Guide
+- **`docs/LAUNCH_GUIDE.md`** — 12-step production launch guide covering server setup, env config, TLS, Docker deploy, admin registration, backups, monitoring, security hardening, and go-live checklist
+
 ---
 
 ## 2026-05-19 — T44 Local Model Support & T45 Image & Audio Processing
