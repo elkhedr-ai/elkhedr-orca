@@ -97,7 +97,7 @@ const db = require('./src/db');
 
 ```bash
 # Set JWT secret in .env
-echo "JWT_SECRET=$(openssl rand -hex 32)" >> .env
+echo "ORCA_JWT_SECRET=$(openssl rand -hex 32)" >> .env
 
 # Register an admin user
 curl -X POST http://localhost:3000/api/v1/auth/register \
@@ -132,10 +132,10 @@ cp backups/v1/agents.json src/agents.json
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DB_TYPE` | `sqlite` | Database type: `sqlite` or `postgres` |
-| `DATABASE_URL` | - | PostgreSQL connection string |
-| `JWT_SECRET` | - | Secret for JWT token signing (required) |
-| `JWT_EXPIRES_IN` | `24h` | Token expiration time |
+| `ORCA_DB_TYPE` | `sqlite` | Database type: `sqlite` or `postgresql` |
+| `ORCA_DB_URL` | - | PostgreSQL connection string |
+| `ORCA_JWT_SECRET` | - | Secret for JWT token signing (required, min 32 chars) |
+| `ORCA_JWT_REFRESH_SECRET` | derived | Refresh token secret |
 | `ORCA_REDIS_URL` | - | Redis URL for caching (optional) |
 | `ORCA_RATE_LIMIT_MAX` | `100` | Max requests per minute per key |
 

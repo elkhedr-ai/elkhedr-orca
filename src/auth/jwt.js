@@ -5,9 +5,9 @@
 
 const jwt = require('jsonwebtoken');
 
-// JWT secret should be set in environment variables
-const JWT_SECRET = process.env.JWT_SECRET || process.env.OPENROUTER_API_KEY || 'orca-default-secret-change-me';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || `${JWT_SECRET}-refresh`;
+// JWT secret — prefer ORCA_JWT_SECRET (schema convention), fall back to JWT_SECRET for compat
+const JWT_SECRET = process.env.ORCA_JWT_SECRET || process.env.JWT_SECRET || process.env.OPENROUTER_API_KEY || 'orca-default-secret-change-me';
+const JWT_REFRESH_SECRET = process.env.ORCA_JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET || `${JWT_SECRET}-refresh`;
 const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
 const REFRESH_TOKEN_EXPIRY = '7d'; // 7 days
 

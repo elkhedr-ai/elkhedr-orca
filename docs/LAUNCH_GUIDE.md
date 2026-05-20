@@ -83,8 +83,8 @@ mkdir -p logs backups/db certs
 
 ```bash
 # Generate all required secrets
-echo "JWT_SECRET=$(openssl rand -hex 32)"
-echo "JWT_REFRESH_SECRET=$(openssl rand -hex 32)"
+echo "ORCA_JWT_SECRET=$(openssl rand -hex 32)"
+echo "ORCA_JWT_REFRESH_SECRET=$(openssl rand -hex 32)"
 echo "MASTER_KEY=$(openssl rand -hex 32)"
 echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)"
 ```
@@ -103,8 +103,8 @@ Fill in **every** required value:
 ```bash
 # === REQUIRED ===
 OPENROUTER_API_KEY=sk-or-v1-YOUR_REAL_KEY
-JWT_SECRET=PASTE_GENERATED_SECRET_HERE
-JWT_REFRESH_SECRET=PASTE_GENERATED_REFRESH_SECRET_HERE
+ORCA_JWT_SECRET=PASTE_GENERATED_SECRET_HERE
+ORCA_JWT_REFRESH_SECRET=PASTE_GENERATED_REFRESH_SECRET_HERE
 ORCA_MASTER_KEY=PASTE_GENERATED_MASTER_KEY_HERE
 POSTGRES_PASSWORD=PASTE_GENERATED_PG_PASSWORD_HERE
 
@@ -406,7 +406,7 @@ Set `ORCA_CORS_ORIGIN` to your exact domain. Do **not** use `*` in production.
 
 ### 11.6 — Secret rotation
 
-- Rotate `JWT_SECRET` and `JWT_REFRESH_SECRET` periodically (every 90 days).
+- Rotate `ORCA_JWT_SECRET` and `ORCA_JWT_REFRESH_SECRET` periodically (every 90 days).
 - After rotation, all existing tokens are invalidated — users must re-login.
 - Rotate `OPENROUTER_API_KEY` if compromised.
 
@@ -418,8 +418,8 @@ Run through this before announcing:
 
 - [ ] `.env.production` has all required values filled in
 - [ ] `NODE_ENV=production` is set
-- [ ] `JWT_SECRET` is a random 64-char hex string (not the default)
-- [ ] `JWT_REFRESH_SECRET` is set and different from `JWT_SECRET`
+- [ ] `ORCA_JWT_SECRET` is a random 64-char hex string (not the default)
+- [ ] `ORCA_JWT_REFRESH_SECRET` is set and different from `ORCA_JWT_SECRET`
 - [ ] `ORCA_MASTER_KEY` is set
 - [ ] `ORCA_CORS_ORIGIN` is set to your exact domain
 - [ ] TLS certificate is valid and not expired
@@ -432,7 +432,7 @@ Run through this before announcing:
 - [ ] Backup cron is installed and first backup exists
 - [ ] Uptime monitor configured
 - [ ] DNS A record points to server IP
-- [ ] No secrets committed to git (`git log --all -p | grep -i "sk-or-v1\|JWT_SECRET\|MASTER_KEY"` should return nothing)
+- [ ] No secrets committed to git (`git log --all -p | grep -i "sk-or-v1\|ORCA_JWT_SECRET\|ORCA_MASTER_KEY"` should return nothing)
 
 ---
 
@@ -467,7 +467,7 @@ Common causes:
 
 ### JWT errors
 
-Check that `JWT_SECRET` and `JWT_REFRESH_SECRET` are set. The app falls back to an insecure default if missing.
+Check that `ORCA_JWT_SECRET` and `ORCA_JWT_REFRESH_SECRET` are set. The app falls back to an insecure default if missing.
 
 ### Database connection refused
 

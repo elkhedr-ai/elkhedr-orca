@@ -16,15 +16,15 @@ Deployment, configuration, and operational management for Orca.
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `OPENROUTER_API_KEY` | Yes | — | OpenRouter API key |
-| `DB_TYPE` | No | `sqlite` | `sqlite` or `postgres` |
-| `DATABASE_URL` | No | — | PostgreSQL connection string |
-| `JWT_SECRET` | Yes (prod) | auto-generated | JWT signing secret |
-| `JWT_EXPIRES_IN` | No | `24h` | Token expiration |
+| `ORCA_DB_TYPE` | No | `sqlite` | `sqlite` or `postgresql` |
+| `ORCA_DB_URL` | No | — | PostgreSQL connection string |
+| `ORCA_JWT_SECRET` | Yes (prod) | — | JWT signing secret (min 32 chars) |
+| `ORCA_JWT_REFRESH_SECRET` | No | derived | JWT refresh token secret |
 | `ORCA_REDIS_URL` | No | — | Redis URL for caching |
 | `ORCA_RATE_LIMIT_MAX` | No | `100` | Requests per minute per key |
 | `ORCA_PORT` | No | `3000` | REST API port |
 | `ORCA_LOG_LEVEL` | No | `info` | `debug`, `info`, `warn`, `error` |
-| `ORCA_MODEL_STRATEGY` | No | `balanced` | `balanced`, `cost`, `quality`, `latency` |
+| `ORCA_MODEL_ROUTING_STRATEGY` | No | `balanced` | `balanced`, `cost`, `quality`, `latency` |
 
 ### Docker
 
@@ -47,7 +47,7 @@ WorkingDirectory=/opt/elkhedr-orca
 ExecStart=/usr/bin/node src/server/index.js
 Restart=always
 Environment=OPENROUTER_API_KEY=sk-or-xxxx
-Environment=JWT_SECRET=your-secret
+Environment=ORCA_JWT_SECRET=your-secret
 Environment=NODE_ENV=production
 
 [Install]

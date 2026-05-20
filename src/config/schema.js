@@ -38,6 +38,7 @@ const envSchema = z.object({
   ORCA_PORT: z.string().default('3000'),
   ORCA_HOST: z.string().default('0.0.0.0'),
   ORCA_JWT_SECRET: z.string().min(32).optional(),
+  ORCA_JWT_REFRESH_SECRET: z.string().min(32).optional(),
   ORCA_SANDBOX: z.string().default('true'),
   ORCA_MAX_RETRIES: z.string().default('3'),
   ORCA_TIMEOUT: z.string().default('60000'),

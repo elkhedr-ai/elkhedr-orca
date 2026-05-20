@@ -12,7 +12,7 @@ describe('AgentMetrics', () => {
   before(async () => {
     // Set required env vars
     process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
-    process.env.JWT_SECRET = 'test-secret';
+    process.env.ORCA_JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long';
 
     const mod = require('../../src/agents/metrics.js');
     AgentMetrics = mod.AgentMetrics;
