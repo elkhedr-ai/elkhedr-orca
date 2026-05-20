@@ -9,6 +9,7 @@ const { verifyAccessToken } = require('../auth/jwt.js');
 const { validateApiKey, hasScope } = require('../auth/api-keys.js');
 const { getUserContext } = require('../auth/context.js');
 const { getSecurityHeaders } = require('../crypto/tls.js');
+const { initializeDatabaseInstance } = require('../db');
 
 async function buildServer(options = {}) {
   const fastify = Fastify({
@@ -186,6 +187,10 @@ async function buildServer(options = {}) {
 async function startServer(options = {}) {
   const port = options.port || parseInt(process.env.ORCA_PORT, 10) || 3000;
   const host = options.host || process.env.ORCA_HOST || '0.0.0.0';
+
+  // Initialize database before starting server
+  await initializeDatabaseInstance();
+  logger.info('Database initialized');
 
   const fastify = await buildServer(options);
 
