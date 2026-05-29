@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Set TUI mode before any other imports to suppress console logs
+process.env.ORCA_TUI_MODE = '1';
+
 const { intro, outro, spinner, log, isCancel } = require('@clack/prompts');
 const chalk = require('chalk');
 const boxen = require('boxen');
@@ -26,8 +29,16 @@ async function getDb() {
 }
 
 const termSize = () => {
-    const ts = require('terminal-size');
-    return (typeof ts === 'function' ? ts : ts.default)();
+    try {
+        const ts = require('terminal-size');
+        const size = (typeof ts === 'function' ? ts : ts.default)();
+        return {
+            columns: Math.max(size.columns || 80, 40),
+            rows: Math.max(size.rows || 24, 10)
+        };
+    } catch {
+        return { columns: 80, rows: 24 };
+    }
 };
 
 const sessionsPath = path.join(__dirname, '../sessions/history.json');
@@ -76,29 +87,48 @@ async function saveInputHistory() {
 // CommandRegistry will be initialized after database is ready
 let commandRegistry = null;
 
+function stripAnsi(str) {
+    // More comprehensive ANSI stripping
+    return str.replace(/\x1b\[[0-9;]*m/g, '').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+}
+
 function centerText(text) {
     const { columns } = termSize();
     const lines = text.split('\n');
     return lines.map(line => {
-        const padding = Math.max(0, Math.floor((columns - line.replace(/\u001b\[.*?m/g, '').length) / 2));
+        const visibleLength = stripAnsi(line).length;
+        const padding = Math.max(0, Math.floor((columns - visibleLength) / 2));
         return ' '.repeat(padding) + line;
     }).join('\n');
 }
 
 async function showHeader() {
     const { columns } = termSize();
+
+    // Skip ASCII art for narrow terminals
+    if (columns < 60) {
+        console.clear();
+        console.log('\n' + centerText(chalk.blue.bold('🐋 ORCA')));
+        console.log(centerText(chalk.dim('v1.0.0 | /help | Ctrl+C to exit')) + '\n');
+        return;
+    }
+
     const splash = `
-      ::::::::  :::::::::   ::::::::      :::     
-     :+:    :+: :+:    :+: :+:    :+:   :+: :+:   
-     +:+    +:+ +:+    +:+ +:+         +:+   +:+  
-     +#+    +:+ +#++:++#:  +#+        +#++:++#++: 
-     +#+    +:+ +#+    +#+ +#+        +#+     +#+ 
-     #+#    #+# #+#    #+# #+#    #+# #+#     #+# 
-      ########  ###    ###  ########  ###     ### 
+      ::::::::  :::::::::   ::::::::      :::
+     :+:    :+: :+:    :+: :+:    :+:   :+: :+:
+     +:+    +:+ +:+    +:+ +:+         +:+   +:+
+     +#+    +:+ +#++:++#:  +#+        +#++:++#++:
+     +#+    +:+ +#+    +#+ +#+        +#+     +#+
+     #+#    #+# #+#    #+# #+#    #+# #+#     #+#
+      ########  ###    ###  ########  ###     ###
     `;
-    
+
     console.clear();
-    console.log('\n' + centerText(gradient(['#00c6ff', '#0072ff'])(splash)));
+    try {
+        console.log('\n' + centerText(gradient(['#00c6ff', '#0072ff'])(splash)));
+    } catch {
+        console.log('\n' + centerText(splash));
+    }
     console.log(centerText(chalk.blue.bold('Corporate Ecosystem Orchestrator | 100 Specialized Agents')));
     console.log(centerText(chalk.dim('v1.0.0 | Type /help for commands | Ctrl+C to exit')));
     console.log('\n');
@@ -107,7 +137,7 @@ async function showHeader() {
 function renderStatusBar() {
     const { columns } = termSize();
     const sandboxStatus = sessionStats.sandbox ? chalk.green('● SANDBOX ON') : chalk.red('○ SANDBOX OFF');
-    
+
     const levelIcons = {
         'Auto': '🤖',
         'Instant': '⚡',
@@ -116,7 +146,7 @@ function renderStatusBar() {
     };
     const icon = levelIcons[sessionStats.level] || '🐋';
 
-    const mode = sessionStats.currentAgent 
+    const mode = sessionStats.currentAgent
         ? chalk.bgBlue.white(` 🤖 DIRECT: ${sessionStats.currentAgent.role.toUpperCase()} `)
         : chalk.bgCyan.black(` ${icon} MODE: ${sessionStats.level.toUpperCase()} `);
 
@@ -126,21 +156,29 @@ function renderStatusBar() {
 
     const stats = [
         chalk.cyan(`💰 $${sessionStats.estimatedCost.toFixed(5)}`),
-        chalk.blue(`🧵 Threads: ${sessionStats.activeAgents}`),
-        chalk.yellow(`⚙️ Tasks: ${sessionStats.totalTasks}`),
+        chalk.blue(`🧵 ${sessionStats.activeAgents}`),
+        chalk.yellow(`⚙️ ${sessionStats.totalTasks}`),
         providerIndicator,
         sandboxStatus
     ].join('  |  ');
 
+    const boxWidth = Math.max(Math.min(columns - 4, 100), 40);
+    const marginLeft = Math.max(0, Math.floor((columns - boxWidth) / 2));
+
     console.log(centerText(mode));
-    console.log(boxen(stats, {
-        width: Math.min(columns - 4, 100),
-        textAlignment: 'center',
-        borderStyle: 'round',
-        borderColor: '#444',
-        padding: 0,
-        margin: { left: Math.floor((columns - Math.min(columns - 4, 100)) / 2) }
-    }));
+    try {
+        console.log(boxen(stats, {
+            width: boxWidth,
+            textAlignment: 'center',
+            borderStyle: 'round',
+            borderColor: '#444',
+            padding: 0,
+            margin: { left: marginLeft }
+        }));
+    } catch {
+        // Fallback for narrow terminals
+        console.log(stats);
+    }
 }
 
 // Custom Safe Autocomplete class
@@ -242,9 +280,7 @@ async function interactiveSession() {
                 }
                 return [];
             },
-            footer: () => this.input && this.input.startsWith('/') ? 
-                chalk.dim(' (Search commands...)') : 
-                chalk.dim(' (Type / for commands, ↑↓ for history)')
+            footer: () => chalk.dim(' (Type / for commands, ↑↓ for history)')
         });
 
         let query;
@@ -331,44 +367,87 @@ async function interactiveSession() {
                  }
 
                 s.stop(chalk.green('✓ Response Received'));
-                
-                const { columns } = termSize();
-                const boxWidth = Math.min(columns - 10, 120);
-                
-                const wrappedResult = wrap(result, {
-                    width: boxWidth - 4,
-                    indent: '',
-                    trim: true
-                });
 
-                console.log(boxen(wrappedResult, {
-                    width: boxWidth,
-                    padding: 1,
-                    margin: { left: Math.floor((columns - boxWidth) / 2), top: 1, bottom: 1 },
-                    borderStyle: 'double',
-                    borderColor: sessionStats.currentAgent ? 'magenta' : 'blue',
-                    title: chalk.bold(sessionStats.currentAgent ? ` ${sessionStats.currentAgent.role.toUpperCase()} ` : ' EXECUTIVE SUMMARY '),
-                    titleAlignment: 'center'
-                }));
+                // Validate response
+                if (!result || result.trim().length === 0) {
+                    console.log(boxen(chalk.yellow('No response received. The model may have returned empty content.'), {
+                        padding: 1,
+                        borderColor: 'yellow',
+                        title: ' EMPTY RESPONSE ',
+                        titleAlignment: 'center'
+                    }));
+                    return;
+                }
+
+                try {
+                    const { columns } = termSize();
+                    const boxWidth = Math.max(Math.min(columns - 10, 120), 40);
+                    const wrapWidth = Math.max(boxWidth - 6, 20);
+
+                    const wrappedResult = wrap(result || '(No response)', {
+                        width: wrapWidth,
+                        indent: '',
+                        trim: true
+                    });
+
+                    console.log(boxen(wrappedResult, {
+                        width: boxWidth,
+                        padding: 1,
+                        margin: { left: Math.max(0, Math.floor((columns - boxWidth) / 2)), top: 1, bottom: 1 },
+                        borderStyle: 'double',
+                        borderColor: sessionStats.currentAgent ? 'magenta' : 'blue',
+                        title: chalk.bold(sessionStats.currentAgent ? ` ${sessionStats.currentAgent.role.toUpperCase()} ` : ' EXECUTIVE SUMMARY '),
+                        titleAlignment: 'center'
+                    }));
+                } catch (renderError) {
+                    // Fallback rendering if boxen fails
+                    console.log('\n' + (result || '(No response)') + '\n');
+                    logger.warn({ error: renderError.message }, 'Response rendering failed, using fallback');
+                }
 
             } catch (error) {
-                s.stop(chalk.red('✗ Orchestration Failed'));
-                
-                logger.error({ error: error.message, stack: error.stack }, 'Orchestration error');
-                
-                const errorBox = boxen(
-                    `${chalk.red.bold('Error:')} ${error.message}\n\n` +
-                    `${chalk.dim('Code:')} ${error.code || 'UNKNOWN'}\n` +
-                    `${chalk.dim('Trace ID:')} ${traceId}`,
+                s.stop(chalk.red('✗ Request Failed'));
 
-                    {
+                logger.error({ error: error.message, stack: error.stack }, 'Orchestration error');
+
+                // User-friendly error messages
+                let userMessage = error.message;
+                let suggestion = '';
+
+                if (error.message.includes('API key') || error.message.includes('401')) {
+                    userMessage = 'Authentication failed';
+                    suggestion = 'Check your OPENROUTER_API_KEY in .env file';
+                } else if (error.message.includes('rate limit') || error.message.includes('429')) {
+                    userMessage = 'Rate limit exceeded';
+                    suggestion = 'Wait a moment and try again, or switch to a different model';
+                } else if (error.message.includes('timeout') || error.message.includes('ECONNRESET')) {
+                    userMessage = 'Connection timeout';
+                    suggestion = 'Check your internet connection and try again';
+                } else if (error.message.includes('quota')) {
+                    userMessage = 'Usage quota exceeded';
+                    suggestion = 'Check your usage limits or upgrade your plan';
+                }
+
+                const errorContent = [
+                    chalk.red.bold(userMessage),
+                    '',
+                    suggestion ? chalk.yellow(`💡 ${suggestion}`) : '',
+                    '',
+                    chalk.dim(`Error: ${error.message}`),
+                    chalk.dim(`Code: ${error.code || 'UNKNOWN'}`),
+                    chalk.dim(`Trace: ${traceId}`)
+                ].filter(Boolean).join('\n');
+
+                try {
+                    console.log(boxen(errorContent, {
                         padding: 1,
                         borderColor: 'red',
                         title: ' ERROR ',
                         titleAlignment: 'center'
-                    }
-                );
-                console.log(errorBox);
+                    }));
+                } catch {
+                    console.log('\n' + errorContent + '\n');
+                }
             }
         }, { 
             operation: sessionStats.currentAgent ? 'tui:direct-agent' : 'tui:orchestrate',

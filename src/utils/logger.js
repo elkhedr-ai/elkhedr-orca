@@ -14,12 +14,14 @@ if (!fs.existsSync(logsDir)) {
 }
 
 function getLogLevel() {
-  try {
-    const { getConfig } = require('../config/index.js');
-    return getConfig().ORCA_LOG_LEVEL;
-  } catch {
-    return process.env.ORCA_LOG_LEVEL || 'info';
-  }
+  // Use env var directly to avoid circular dependency with config module
+  return process.env.ORCA_LOG_LEVEL || 'info';
+}
+
+// Check if running in TUI mode
+function isTuiMode() {
+  return process.env.ORCA_TUI_MODE === '1' ||
+    (require.main && (require.main.filename.includes('tui.js') || require.main.filename.includes('index.js')));
 }
 
 // Mixin to auto-include trace context in every log entry
@@ -41,11 +43,17 @@ function tracingMixin() {
   return {};
 }
 
+const tuiMode = isTuiMode();
+
+// Create stderr stream for TUI mode (only errors)
+const stderrStream = tuiMode ? pino.destination(2) : null; // 2 = stderr
+
 const logger = pino({
   level: getLogLevel(),
   mixin: tracingMixin,
   transport: {
     targets: [
+      // Console: only show errors in TUI mode, or info+ in non-TUI mode
       {
         target: 'pino-pretty',
         options: {
@@ -53,8 +61,9 @@ const logger = pino({
           translateTime: 'SYS:standard',
           ignore: 'pid,hostname'
         },
-        level: getLogLevel() === 'debug' ? 'debug' : 'info'
+        level: tuiMode ? 'error' : (getLogLevel() === 'debug' ? 'debug' : 'info')
       },
+      // File: always log everything
       {
         target: 'pino/file',
         options: {

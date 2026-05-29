@@ -1,4 +1,11 @@
 #!/usr/bin/env node
+
+// Pre-check for interactive mode to set TUI env before logger loads
+const isTuiMode = process.argv.length <= 2 || process.argv.includes('--interactive') || process.argv.includes('-i');
+if (isTuiMode) {
+  process.env.ORCA_TUI_MODE = '1';
+}
+
 const { orchestrate, runSingleAgent } = require('./core.js');
 const { parseArgs, displayHelp } = require('./cli/args.js');
 const { logger } = require('./utils/logger.js');

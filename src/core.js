@@ -46,6 +46,17 @@ const OPENROUTER_BASE_URL = config.ORCA_OPENROUTER_BASE_URL.replace(/\/$/, '');
 const agentsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents.json'), 'utf8'));
 const UNIVERSAL_FALLBACK = "google/gemma-4-26b-a4b-it";
 
+// System prompt for better response quality
+const SYSTEM_PROMPT = `You are Elkhedr Orca, an advanced AI assistant with access to 100 specialized agents.
+When responding:
+- Be concise and direct
+- Provide actionable information
+- Use markdown formatting for readability
+- If you need to use tools, explain what you're doing
+- For code, use proper syntax highlighting
+- For complex tasks, break them down step by step
+- Always be helpful and professional`;
+
 // Database instance will be initialized asynchronously
 let dbInstance = null;
 
@@ -413,6 +424,13 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
       }
 
       // Wrap API call with circuit breaker protection
+      log.debug({
+        targetModel,
+        messageCount: messages.length,
+        hasTools: !!payload.tools,
+        firstMessage: messages[0]?.content?.substring(0, 100)
+      }, 'Sending API request');
+
       const response = await openRouterCircuitBreaker.execute(async () => {
         return await withRetry(
           () => axios.post(`${OPENROUTER_BASE_URL}/chat/completions`, payload, {
@@ -505,8 +523,13 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
           return await callOpenRouter(targetModel, [...messages, choice.message, ...results], null, sandbox, agentRole, false);
         }
         
+        const content = choice.message.content || '';
+        if (!content.trim()) {
+          log.warn({ model: targetModel }, 'Model returned empty content');
+        }
+
         return {
-          content: choice.message.content,
+          content: content || '(Model returned empty response)',
           usage: response.data.usage,
           model: targetModel,
           latency: Date.now() - startedAt
@@ -637,16 +660,35 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
 
   if (level === 'Auto') {
     if (onEvent) onEvent({ type: 'status', message: '🤖 Analyzing task complexity...' });
-    
+
+    const routingPrompt = `You are a task complexity analyzer. Based on the user's request, determine the appropriate processing level.
+
+Rules:
+- "Instant": Simple questions, greetings, quick facts, single-step tasks
+- "Thinking": Moderate complexity, multi-step tasks, analysis, coding tasks
+- "Swarm": Complex tasks requiring multiple specialized agents, research, large projects
+
+User request: "${userPrompt}"
+
+Reply with ONLY one word: Instant, Thinking, or Swarm`;
+
     const routeResult = await callOpenRouter(
-      "google/gemma-4-26b-a4b-it", 
-      [{ role: 'user', content: `Analyze complexity: "${userPrompt}". Reply only: Instant, Thinking, or Swarm.` }], 
-      "google/gemma-4-31b-it", 
-      sessionStats.sandbox, 
+      "google/gemma-4-26b-a4b-it",
+      [{ role: 'user', content: routingPrompt }],
+      "google/gemma-4-31b-it",
+      sessionStats.sandbox,
       "Router"
     );
-    level = routeResult?.content?.trim() || 'Instant';
-    logger.info({ selectedLevel: level }, 'Auto-routing complete');
+
+    const rawLevel = routeResult?.content?.trim().toLowerCase() || '';
+    if (rawLevel.includes('swarm')) {
+      level = 'Swarm';
+    } else if (rawLevel.includes('thinking')) {
+      level = 'Thinking';
+    } else {
+      level = 'Instant';
+    }
+    logger.info({ selectedLevel: level, raw: routeResult?.content }, 'Auto-routing complete');
   }
 
     // Load or create session stats from database with user isolation
@@ -683,7 +725,7 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
     if (onEvent) onEvent({ type: 'status', message: '⚡ Running instant mode...' });
     const { messages: instantMessages, rag } = await prepareRagMessages(
       userPrompt,
-      contextMessages,
+      [{ role: 'system', content: SYSTEM_PROMPT }, ...contextMessages],
       {
         sessionStats,
         agentRole: 'Instant',
@@ -707,10 +749,11 @@ async function orchestrate(userPrompt, onEvent = null, sessionStats = {}) {
 
   if (level === 'Thinking') {
     if (onEvent) onEvent({ type: 'status', message: `🏢 Running ${level} mode...` });
-    
+
+    const orchestratorSystemPrompt = `${orchestrator.prompt}\n\n${SYSTEM_PROMPT}`;
     const { messages: orchestratorMessages, rag } = await prepareRagMessages(
       userPrompt,
-      contextMessages,
+      [{ role: 'system', content: orchestratorSystemPrompt }, ...contextMessages],
       {
         sessionStats,
         agentRole: 'CEO',
