@@ -1,0 +1,29 @@
+{
+  "id": "orca",
+  "label": "Elkhedr Orca",
+  "kind": "standalone_product_app",
+  "version": "1.1.0",
+  "description": "Standalone autonomous coding and product-creation runtime.",
+  "standalone": {
+    "repo": "https://github.com/ekagent/elkhedr-orca",
+    "downloadable": true,
+    "bootCommand": "npm run cli",
+    "healthCheck": "/health",
+    "boundary": "Orca integrates through MCP, APIs, bridge metadata, action approvals, events, and artifacts only."
+  },
+  "routes": [
+    {
+      "id": "orca_home",
+      "path": "/orca",
+      "label": "Orca",
+      "implemented": true,
+      "capabilityKey": "orca.home"
+    }
+  ],
+  "apiPrefixes": ["/api/orca"],
+  "capabilityPrefixes": ["orca."],
+  "eventTypes": ["orca.run_started", "orca.action_requested", "orca.run_completed"],
+  "artifactTypes": ["orca.run", "orca.report", "orca.patch"],
+  "integrationModes": ["standalone", "composed", "headless"],
+  "doNotTouch": ["elkhedr-orca/src"]
+}

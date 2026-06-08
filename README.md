@@ -16,6 +16,27 @@ Once installed, you can call the Orca system from any terminal:
 orca "Build a full-stack SaaS app and draft a marketing plan"
 ```
 
+## Elkhedr App Split Contract
+
+Orca remains a standalone app. Studio, OS, Memory, Omni, and Workspace must integrate
+with it through MCP, bridge APIs, action approvals, events, and artifacts instead of
+importing `elkhedr-orca/src` runtime modules.
+
+Contract metadata lives at:
+
+```bash
+manifests/app.manifest.json
+```
+
+Local contract checks:
+
+```bash
+npm run manifest
+node --check src/index.js
+node --check src/mcp-server.js
+bash -n install.sh
+```
+
 ## 🏗️ Architecture
 
 - **Super Orchestrator (CEO/COO):** Powered by `nvidia/nemotron-3-super-120b-a12b:free`.
