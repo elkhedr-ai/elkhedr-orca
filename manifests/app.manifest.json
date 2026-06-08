@@ -22,7 +22,15 @@
   ],
   "apiPrefixes": ["/api/orca"],
   "capabilityPrefixes": ["orca."],
-  "eventTypes": ["orca.run_started", "orca.action_requested", "orca.run_completed"],
+  "eventTypes": [
+    "orca.run_started",
+    "orca.action_requested",
+    "orca.action_approved",
+    "orca.action_rejected",
+    "orca.action_completed",
+    "orca.action_failed",
+    "orca.run_completed"
+  ],
   "artifactTypes": ["orca.run", "orca.report", "orca.patch"],
   "integrationModes": ["standalone", "composed", "headless"],
   "doNotTouch": ["elkhedr-orca/src"]

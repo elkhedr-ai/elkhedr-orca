@@ -37,6 +37,12 @@ node --check src/mcp-server.js
 bash -n install.sh
 ```
 
+Bridge action approvals live under `/api/orca/actions`. Dangerous actions such as shell
+execution, file writes/deletes, desktop control, browser control, authenticated network
+calls, and MCP calls are created as `pending_approval`; Orca only accepts a result after
+an authenticated approval decision. Request, approval, rejection, and result transitions
+are written to the tamper-evident audit log.
+
 ## 🏗️ Architecture
 
 - **Super Orchestrator (CEO/COO):** Powered by `nvidia/nemotron-3-super-120b-a12b:free`.

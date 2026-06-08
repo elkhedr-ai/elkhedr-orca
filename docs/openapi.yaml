@@ -35,6 +35,8 @@ tags:
     description: Alert rules and notifications
   - name: Backups
     description: Database backup management
+  - name: Orca
+    description: Orca bridge status and action approval contract
 paths:
   /health:
     get:
@@ -1466,6 +1468,95 @@ paths:
                     $ref: "#/components/schemas/Backup"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/orca/status:
+    get:
+      operationId: orcaBridgeStatus
+      summary: Check Orca bridge status and approval contract support
+      tags:
+        - Orca
+      responses:
+        "200":
+          description: Orca bridge status
+  /api/orca/actions:
+    get:
+      operationId: listOrcaActionRequests
+      summary: List Orca bridge action requests
+      tags:
+        - Orca
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Orca action request list
+    post:
+      operationId: createOrcaActionRequest
+      summary: Create an approval-gated Orca bridge action request
+      tags:
+        - Orca
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Orca action request created
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/orca/actions/{actionId}:
+    get:
+      operationId: getOrcaActionRequest
+      summary: Read one Orca bridge action request
+      tags:
+        - Orca
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Orca action request
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/orca/actions/{actionId}/approval:
+    post:
+      operationId: decideOrcaActionRequest
+      summary: Approve or reject a pending Orca bridge action request
+      tags:
+        - Orca
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Orca action decision recorded
+        "409":
+          description: Action request is not pending approval
+  /api/orca/actions/{actionId}/result:
+    post:
+      operationId: completeOrcaActionRequest
+      summary: Attach a result to an approved Orca bridge action request
+      tags:
+        - Orca
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Orca action result recorded
+        "409":
+          description: Action request has not been approved
 components:
   securitySchemes:
     bearerAuth:
