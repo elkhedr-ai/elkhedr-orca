@@ -1,6 +1,24 @@
-# AGENTS.md
+# Elkhedr Orca Agent Guide
 
-This file provides guidance to agents when working with code in this repository.
+**STATUS:** STANDALONE
+
+## Two-Layer Architecture
+
+Orca is a **standalone app** with its own full runtime. It integrates with the Elkhedr global layer (OS, Memory, Omni, Workspace) through contracts only:
+
+- **Standalone layer**: Own runtime, CLI, MCP server, action approvals, audit logging.
+- **Global layer**: OS discovery, Memory event projection, Omni routing, Workspace artifacts.
+
+Orca must not import Studio, Memory, Omni, or Workspace runtime code. Global apps must not import `elkhedr-orca/src`.
+
+## Critical Architecture Patterns
+
+## Contract Rules
+
+- Validate `manifests/app.manifest.json` through the vendored generated helper at `contracts/generated/javascript/contracts.cjs`; update that snapshot only as part of a coordinator-owned contract regeneration slice.
+- Do not import another Elkhedr product runtime to validate Orca contracts.
+- Orca emits `orca.*` events and `orca.*` artifacts for OS graph/timeline projection.
+- Action approvals and audit logs are the bridge contract for dangerous actions.
 
 ## Critical Architecture Patterns
 

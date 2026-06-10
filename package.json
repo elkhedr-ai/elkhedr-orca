@@ -4,6 +4,19 @@
   "description": "Multi-Agent Orchestration System with 100 specialized AI agents",
   "main": "src/index.js",
   "types": "types/index.d.ts",
+  "files": [
+    "manifests",
+    "contracts",
+    "scripts",
+    "src",
+    "tests",
+    "docs",
+    "types",
+    "install.sh",
+    "README.md",
+    "AGENTS.md",
+    ".env.example"
+  ],
   "bin": {
     "orca": "src/index.js",
     "mcp-orca": "src/mcp-server.js"
@@ -14,7 +27,8 @@
     "tui": "node src/tui.js",
     "mcp": "node src/mcp-server.js",
     "manifest": "node scripts/validate-manifest.js",
-    "test": "node --test tests/**/*.test.js",
+    "build": "node scripts/validate-manifest.js && node --check contracts/generated/javascript/contracts.cjs && node --check src/index.js && node --check src/mcp-server.js",
+    "test": "node scripts/validate-manifest.js && node --test tests/**/*.test.js",
     "test:unit": "node --test tests/unit/**/*.test.js",
     "test:integration": "node --test tests/integration/**/*.test.js",
     "lint": "echo 'Linting not configured yet'",

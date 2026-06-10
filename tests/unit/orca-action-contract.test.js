@@ -187,4 +187,46 @@ describe('Orca action approval contract', () => {
     });
     assert.strictEqual(result.statusCode, 409);
   });
+
+  it('emits projection events with artifacts for OS ingestion', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/orca/actions',
+      headers: { Authorization: `Bearer ${authToken}` },
+      payload: {
+        actionType: 'shell.execute',
+        capabilityKey: 'orca.shell',
+        description: 'Run npm test',
+        risk: 'high',
+      },
+    });
+    const actionId = JSON.parse(created.body).action.id;
+
+    await app.inject({
+      method: 'POST',
+      url: `/api/orca/actions/${actionId}/approval`,
+      headers: { Authorization: `Bearer ${authToken}` },
+      payload: { decision: 'approved', reason: 'Test OK' },
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: `/api/orca/actions/${actionId}/result`,
+      headers: { Authorization: `Bearer ${authToken}` },
+      payload: { status: 'success', summary: 'Done' },
+    });
+
+    const events = await app.inject({
+      method: 'GET',
+      url: '/api/orca/events',
+    });
+    assert.strictEqual(events.statusCode, 200);
+    const body = JSON.parse(events.body);
+    assert.ok(body.events.length >= 3);
+    assert.ok(body.events.some((e) => e.event_type === 'orca.action_requested'));
+    assert.ok(body.events.some((e) => e.event_type === 'orca.action_approved'));
+    assert.ok(body.events.some((e) => e.event_type === 'orca.action_completed'));
+    assert.ok(body.events.every((e) => e.app_id === 'orca'));
+    assert.ok(body.events.every((e) => e.artifact && e.artifact.artifact_type.startsWith('orca.')));
+  });
 });

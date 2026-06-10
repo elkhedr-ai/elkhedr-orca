@@ -44,8 +44,60 @@ async function auditActionTransition(action, transition, request, status = 'succ
   });
 }
 
+function buildArtifactForAction(action) {
+  const artifactType = action.actionType === 'shell.execute' || action.actionType === 'terminal.execute'
+    ? 'orca.run'
+    : (action.result?.artifacts?.[0]?.type || 'orca.report');
+  return {
+    id: action.id,
+    app_id: 'orca',
+    artifact_type: artifactType,
+    title: action.description || `Orca action ${action.id}`,
+    created_at: action.createdAt,
+    updated_at: action.updatedAt,
+    metadata: {
+      actionType: action.actionType,
+      capabilityKey: action.capabilityKey,
+      risk: action.risk,
+      status: action.status,
+      approvalRequired: action.approvalRequired,
+    },
+  };
+}
+
 async function orcaActionRoutes(fastify) {
   const store = getActionApprovalStore();
+
+  fastify.get('/events', {
+    schema: {
+      description: 'List Orca action events for OS projection.',
+      tags: ['Orca'],
+      querystring: {
+        type: 'object',
+        properties: {
+          eventType: { type: 'string' },
+          limit: { type: 'integer', default: 50 },
+        },
+      },
+    },
+  }, async (request) => {
+    const allActions = store.list();
+    let events = [];
+    for (const action of allActions) {
+      for (const event of action.events || []) {
+        events.push({
+          ...event,
+          artifact: buildArtifactForAction(action),
+        });
+      }
+    }
+    events.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    const limit = Math.min(parseInt(request.query.limit || 50, 10), 200);
+    if (request.query.eventType) {
+      events = events.filter((e) => e.event_type === request.query.eventType);
+    }
+    return { events: events.slice(0, limit) };
+  });
 
   fastify.get('/status', {
     schema: {

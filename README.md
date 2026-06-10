@@ -31,11 +31,15 @@ manifests/app.manifest.json
 Local contract checks:
 
 ```bash
+npm run build
 npm run manifest
+npm run health
 node --check src/index.js
 node --check src/mcp-server.js
 bash -n install.sh
 ```
+
+The `npm run build` step validates the app manifest against the vendored contract helper at `contracts/generated/javascript/contracts.cjs`.
 
 Bridge action approvals live under `/api/orca/actions`. Dangerous actions such as shell
 execution, file writes/deletes, desktop control, browser control, authenticated network
