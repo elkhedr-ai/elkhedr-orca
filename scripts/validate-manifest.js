@@ -9,73 +9,60 @@ function fail(message) {
   process.exit(1);
 }
 
-function requireArray(manifest, field) {
-  if (!Array.isArray(manifest[field])) {
-    fail(`${field} must be an array`);
+function loadContractsHelper() {
+  const candidates = [
+    { label: 'installed elkhedr-contracts package', request: 'elkhedr-contracts' },
+    {
+      label: 'workspace elkhedr-contracts checkout',
+      request: path.join(__dirname, '..', '..', 'elkhedr-contracts'),
+    },
+    {
+      label: 'workspace generated contracts helper',
+      request: path.join(
+        __dirname,
+        '..',
+        '..',
+        'elkhedr-contracts',
+        'contracts',
+        'generated',
+        'javascript',
+        'contracts.cjs',
+      ),
+    },
+    {
+      label: 'offline vendored contracts helper',
+      request: path.join(__dirname, '..', 'contracts', 'generated', 'javascript', 'contracts.cjs'),
+    },
+  ];
+  const errors = [];
+  for (const candidate of candidates) {
+    try {
+      return { ...require(candidate.request), source: candidate.label };
+    } catch (error) {
+      errors.push(`${candidate.label}: ${error.message}`);
+    }
   }
+  throw new Error(`Unable to load elkhedr-contracts helper:\n${errors.join('\n')}`);
 }
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-const required = [
-  'id',
-  'label',
-  'kind',
-  'version',
-  'standalone',
-  'routes',
-  'apiPrefixes',
-  'capabilityPrefixes',
-  'eventTypes',
-  'artifactTypes',
-  'integrationModes',
-];
 
-for (const field of required) {
-  if (!(field in manifest)) {
-    fail(`missing ${field}`);
-  }
-}
-
-if (manifest.id !== 'orca') {
-  fail('id must be orca');
-}
-
-if (!/^([0-9]+)\.([0-9]+)\.([0-9]+)(-[A-Za-z0-9.-]+)?$/.test(manifest.version)) {
-  fail('version must be semver');
-}
-
-for (const field of ['routes', 'apiPrefixes', 'capabilityPrefixes', 'eventTypes', 'artifactTypes', 'integrationModes']) {
-  requireArray(manifest, field);
-}
-
-for (const field of ['repo', 'downloadable', 'bootCommand', 'healthCheck']) {
-  if (!(field in manifest.standalone)) {
-    fail(`standalone.${field} is required`);
-  }
-}
-
-if (!manifest.capabilityPrefixes.every((prefix) => prefix === 'orca.')) {
-  fail('capabilityPrefixes must stay inside orca.*');
+let source = null;
+let pathFor = null;
+let validateAppManifest = null;
+try {
+  ({ pathFor, source, validateAppManifest } = loadContractsHelper());
+  validateAppManifest(manifest, { appId: 'orca' });
+} catch (error) {
+  fail(error.message);
 }
 
 if (!manifest.apiPrefixes.includes('/api/orca')) {
   fail('apiPrefixes must include /api/orca');
 }
 
-if (!manifest.integrationModes.includes('standalone')) {
-  fail('integrationModes must include standalone');
+if (pathFor('orcaStatus') !== '/api/orca/status') {
+  fail('Orca status contract path mismatch');
 }
 
-for (const eventType of manifest.eventTypes) {
-  if (!eventType.startsWith('orca.')) {
-    fail(`event type must use orca.*: ${eventType}`);
-  }
-}
-
-for (const artifactType of manifest.artifactTypes) {
-  if (!artifactType.startsWith('orca.')) {
-    fail(`artifact type must use orca.*: ${artifactType}`);
-  }
-}
-
-console.log(`manifest ok: ${manifest.id}`);
+console.log(`manifest ok: ${manifest.id} (${source})`);

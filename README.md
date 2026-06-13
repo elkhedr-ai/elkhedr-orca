@@ -37,6 +37,10 @@ node --check src/mcp-server.js
 bash -n install.sh
 ```
 
+`npm run manifest` validates through the installed or sibling `elkhedr-contracts`
+helper when available. Offline generated snapshots are fallback-only and should be
+refreshed through coordinator-owned contract regeneration.
+
 ## Resource Budgets And Modes
 
 | Mode | Command | Resource Rule |
