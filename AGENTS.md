@@ -25,6 +25,8 @@ Within the composed Elkhedr platform, Orca is the execution muscle. It registers
 - **Session & Run History:** Tracks logs, console prints, token usage, and cost aggregates.
 - **API Namespace:** `/api/orca` (and local MCP bridge)
 - **Capability Prefix:** `orca.*` (e.g., `orca.execute`, `orca.mcp_register`)
+- **Bridge Projection:** `/api/orca/status`, `/api/orca/actions`, and read-only
+  `/api/orca/events` for OS projection without importing Orca runtime code.
 
 ### Orca Does NOT Own:
 - **Billing & Entitlements:** Plan checks, license signatures, subscription invoices (→ `elkhedr-os`).
@@ -157,3 +159,5 @@ Because Orca runs shell commands, strict execution boundaries are required:
 - **IP Protection:** Do not transmit Orca state machines, fallback architectures, or tool recursion patterns to training sets or providers.
 - **Code Quality:** Keep CLI utilities lightweight. Clean up file handlers and ensure all spawned processes are terminated on run exit.
 - **Cross-App Communication:** Use only MCP protocols or HTTP API routes to coordinate with Studio or OS.
+- **Projection Boundary:** Expose action lifecycle events as OS-compatible envelopes;
+  never let OS or Studio read Orca databases or import `src` modules.

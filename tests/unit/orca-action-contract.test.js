@@ -126,6 +126,18 @@ describe('Orca action approval contract', () => {
     assert.strictEqual(completedBody.action.status, 'completed');
     assert.strictEqual(completedBody.action.result.artifacts.length, 1);
 
+    const events = await app.inject({
+      method: 'GET',
+      url: '/api/orca/events',
+    });
+    assert.strictEqual(events.statusCode, 200, events.body);
+    const eventsBody = JSON.parse(events.body);
+    assert.ok(eventsBody.events.some((event) => event.event_type === 'orca.action_requested'));
+    assert.ok(eventsBody.events.some((event) => event.event_type === 'orca.action_completed'));
+    assert.strictEqual(eventsBody.events[0].app_id, 'orca');
+    assert.strictEqual(eventsBody.events[0].artifact.app_id, 'orca');
+    assert.ok(['orca.run', 'orca.report'].includes(eventsBody.events.at(-1).artifact.artifact_type));
+
     const logs = await getAuditLogs({ eventType: 'orca_action', limit: 10 });
     assert.deepStrictEqual(
       logs.map((log) => log.action).reverse(),

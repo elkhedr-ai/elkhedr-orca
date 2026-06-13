@@ -81,6 +81,47 @@ function pushEvent(action, type, actor, payload = {}) {
   return event;
 }
 
+function actionArtifact(action, event) {
+  const artifactFromResult = action.result?.artifacts?.[0];
+  if (artifactFromResult && artifactFromResult.type) {
+    return {
+      id: artifactFromResult.id || action.id,
+      app_id: 'orca',
+      artifact_type: artifactFromResult.type,
+      title: artifactFromResult.title || action.description,
+      uri: artifactFromResult.uri,
+      created_at: event.timestamp,
+      metadata: {
+        actionType: action.actionType,
+        status: action.status,
+        risk: action.risk,
+      },
+    };
+  }
+
+  return {
+    id: action.id,
+    app_id: 'orca',
+    artifact_type: 'orca.run',
+    title: action.description,
+    created_at: action.createdAt,
+    updated_at: action.updatedAt,
+    metadata: {
+      actionType: action.actionType,
+      status: action.status,
+      risk: action.risk,
+      approvalRequired: action.approvalRequired,
+    },
+  };
+}
+
+function projectEvent(action, event) {
+  return {
+    ...event,
+    artifact: actionArtifact(action, event),
+  };
+}
+
 class OrcaActionApprovalStore {
   constructor() {
     this.actions = new Map();
@@ -152,6 +193,14 @@ class OrcaActionApprovalStore {
     });
     actions.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return clone(actions);
+  }
+
+  listEvents(filters = {}) {
+    const events = Array.from(this.actions.values())
+      .flatMap((action) => action.events.map((event) => projectEvent(action, event)))
+      .filter((event) => !filters.eventType || event.event_type === filters.eventType);
+    events.sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id));
+    return clone(events);
   }
 
   get(actionId) {
@@ -237,4 +286,5 @@ module.exports = {
   OrcaActionApprovalStore,
   getActionApprovalStore: () => store,
   isDangerousAction,
+  projectEvent,
 };

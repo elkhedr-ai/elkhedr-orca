@@ -80,6 +80,21 @@ async function orcaActionRoutes(fastify) {
     return { actions: store.list({ status: request.query.status }) };
   });
 
+  fastify.get('/events', {
+    schema: {
+      description: 'List Orca bridge events for OS projection.',
+      tags: ['Orca'],
+      querystring: {
+        type: 'object',
+        properties: {
+          eventType: { type: 'string' },
+        },
+      },
+    },
+  }, async (request) => {
+    return { events: store.listEvents({ eventType: request.query.eventType }) };
+  });
+
   fastify.post('/actions', {
     preHandler: [fastify.requireAuth, fastify.requireScope('write')],
     schema: {
