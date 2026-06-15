@@ -113,6 +113,10 @@ const API_ENDPOINTS = Object.freeze({
     "method": "GET",
     "path": "/api/os/context"
   },
+  "getOsEventRetentionPolicy": {
+    "method": "GET",
+    "path": "/api/os/events/retention"
+  },
   "getRegisteredApp": {
     "method": "GET",
     "path": "/api/os/apps/{appId}"
@@ -221,9 +225,17 @@ const API_ENDPOINTS = Object.freeze({
     "method": "POST",
     "path": "/api/os/apps/probe"
   },
+  "pruneOsEvents": {
+    "method": "POST",
+    "path": "/api/os/events/prune"
+  },
   "registerApp": {
     "method": "POST",
     "path": "/api/os/apps"
+  },
+  "replayOsEvents": {
+    "method": "POST",
+    "path": "/api/os/events/replay"
   },
   "requestMemoryCloudCompanionSync": {
     "method": "POST",
@@ -248,6 +260,10 @@ const API_ENDPOINTS = Object.freeze({
   "updateOsAppAvailability": {
     "method": "PATCH",
     "path": "/api/os/apps/{appId}/availability"
+  },
+  "updateOsEventRetentionPolicy": {
+    "method": "POST",
+    "path": "/api/os/events/retention"
   },
   "updateWorkspaceDocument": {
     "method": "PATCH",

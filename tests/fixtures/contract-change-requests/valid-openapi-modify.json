@@ -1,0 +1,12 @@
+{
+  "contractType": "openapi",
+  "changeType": "modify",
+  "target": "/api/orca/contracts/change-requests",
+  "description": "Add contract change request REST endpoints to the OpenAPI service contract.",
+  "proposedValue": {
+    "path": "/api/orca/contracts/change-requests",
+    "methods": ["GET", "POST"]
+  },
+  "appId": "orca",
+  "reason": "Expose CCR lifecycle through the service API."
+}

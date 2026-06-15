@@ -1,0 +1,7 @@
+{
+  "contractType": "event",
+  "changeType": "add",
+  "target": "orca.missing_proposed_value",
+  "description": "This request is missing the required proposedValue field.",
+  "appId": "orca"
+}

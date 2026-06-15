@@ -1,0 +1,11 @@
+{
+  "contractType": "manifest",
+  "changeType": "add",
+  "target": "orca.contract_change_requested",
+  "description": "Add contract change request event type to the Orca manifest.",
+  "proposedValue": {
+    "eventType": "orca.contract_change_requested"
+  },
+  "appId": "orca",
+  "reason": "Required for ELK-ORCA-PROD-003 contract change request lifecycle."
+}

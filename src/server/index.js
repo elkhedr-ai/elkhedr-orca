@@ -155,6 +155,7 @@ async function buildServer(options = {}) {
   fastify.register(require('./routes/backups.js'), { prefix: '/api/v1' });
   fastify.register(require('./routes/agent-metrics.js'), { prefix: '/api/v1' });
   fastify.register(require('./routes/orca-actions.js'), { prefix: '/api/orca' });
+  fastify.register(require('./routes/orca-contracts.js'), { prefix: '/api/orca' });
 
   // Health and readiness endpoints (no auth required)
   fastify.register(require('./health.js'));

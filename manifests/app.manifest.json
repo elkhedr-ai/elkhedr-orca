@@ -29,9 +29,13 @@
     "orca.action_rejected",
     "orca.action_completed",
     "orca.action_failed",
+    "orca.contract_change_requested",
+    "orca.contract_change_approved",
+    "orca.contract_change_rejected",
+    "orca.contract_change_completed",
     "orca.run_completed"
   ],
-  "artifactTypes": ["orca.run", "orca.report", "orca.patch"],
+  "artifactTypes": ["orca.run", "orca.report", "orca.patch", "orca.contract_change_request"],
   "integrationModes": ["standalone", "composed", "headless"],
   "doNotTouch": ["elkhedr-orca/src"]
 }

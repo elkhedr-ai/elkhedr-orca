@@ -31,21 +31,35 @@ manifests/app.manifest.json
 Local contract checks:
 
 ```bash
-npm run build
 npm run manifest
-npm run health
 node --check src/index.js
 node --check src/mcp-server.js
 bash -n install.sh
 ```
 
-The `npm run build` step validates the app manifest against the vendored contract helper at `contracts/generated/javascript/contracts.cjs`.
+`npm run manifest` validates through the installed or sibling `elkhedr-contracts`
+helper when available. Offline generated snapshots are fallback-only and should be
+refreshed through coordinator-owned contract regeneration.
 
-Bridge action approvals live under `/api/orca/actions`. Dangerous actions such as shell
+## Resource Budgets And Modes
+
+| Mode | Command | Resource Rule |
+|---|---|---|
+| App-only | `npm run manifest && node --check src/index.js && node --check src/mcp-server.js` | Validates Orca contract and entrypoints without starting the autonomous runtime. |
+| Lightweight compose | Parent `npm run compose:smoke` | Orca is discovered from its manifest but is not started. |
+| Full composed probe | Parent `npm run compose:full-smoke` | Requires an already-running Orca health endpoint; the parent still does not launch Orca. |
+| Production release | Parent `npm run production:check`; parent `npm run production:full-check` when Orca is already running; Orca `npm run manifest && npm test` | Release only after contract, approval, audit, and service-mode checks pass. |
+
+Keep Orca efficient: use manifest and health probes for global sync, require approval for
+high-risk actions, and avoid launching autonomous agent loops during parent smoke tests.
+
+Bridge status and projection endpoints live under `/api/orca/status` and
+`/api/orca/events`. Bridge action approvals live under `/api/orca/actions`. Dangerous actions such as shell
 execution, file writes/deletes, desktop control, browser control, authenticated network
 calls, and MCP calls are created as `pending_approval`; Orca only accepts a result after
 an authenticated approval decision. Request, approval, rejection, and result transitions
-are written to the tamper-evident audit log.
+are written to the tamper-evident audit log and exposed as OS-projectable event
+envelopes.
 
 ## 🏗️ Architecture
 
