@@ -66,7 +66,7 @@ class EventBus extends EventEmitter {
     // Subscribe to all events for persistence via wildcard
     if (this.persistenceEnabled) {
       this.wildcardSubscribers.push((event) => {
-        this._persistEvent(event.type, event.data);
+        this._persistEvent(event);
       });
     }
     
@@ -261,13 +261,7 @@ class EventBus extends EventEmitter {
   /**
    * Persist event to store
    */
-  _persistEvent(type, data) {
-    const event = {
-      type,
-      timestamp: Date.now(),
-      data: data || {}
-    };
-    
+  _persistEvent(event) {
     try {
       this.store.append(event);
     } catch (error) {
