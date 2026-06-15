@@ -131,7 +131,7 @@ class OrcaActionApprovalStore {
     this.actions.clear();
   }
 
-  create(input, context = {}) {
+  create(input, context = {}, options = {}) {
     if (!input || typeof input !== 'object') {
       throw new ActionContractError('request body is required');
     }
@@ -170,14 +170,16 @@ class OrcaActionApprovalStore {
       updatedAt: createdAt,
     };
 
-    pushEvent(action, 'orca.action_requested', actor, {
+    const requestedEventType = options.requestedEventType || 'orca.action_requested';
+    const autoApprovedEventType = options.autoApprovedEventType || 'orca.action_approved';
+    pushEvent(action, requestedEventType, actor, {
       actionType: action.actionType,
       approvalRequired,
       risk,
       status: action.status,
     });
     if (!approvalRequired) {
-      pushEvent(action, 'orca.action_approved', { id: 'system', role: 'system' }, {
+      pushEvent(action, autoApprovedEventType, { id: 'system', role: 'system' }, {
         decision: 'approved',
         reason: 'Approval not required for low-risk action.',
       });
@@ -211,7 +213,7 @@ class OrcaActionApprovalStore {
     return clone(action);
   }
 
-  decide(actionId, input = {}, context = {}) {
+  decide(actionId, input = {}, context = {}, options = {}) {
     const action = this.actions.get(actionId);
     if (!action) {
       throw new ActionContractError('Action request not found', 404);
@@ -236,14 +238,15 @@ class OrcaActionApprovalStore {
     action.approvals.push(approval);
     action.status = decision === 'approved' ? 'approved' : 'rejected';
     action.updatedAt = approval.createdAt;
-    pushEvent(action, `orca.action_${decision}`, actor, {
+    const decidedEventType = options.decidedEventType || `orca.action_${decision}`;
+    pushEvent(action, decidedEventType, actor, {
       decision,
       reason: approval.reason,
     });
     return clone(action);
   }
 
-  attachResult(actionId, input = {}, context = {}) {
+  attachResult(actionId, input = {}, context = {}, options = {}) {
     const action = this.actions.get(actionId);
     if (!action) {
       throw new ActionContractError('Action request not found', 404);
@@ -269,7 +272,9 @@ class OrcaActionApprovalStore {
     };
     action.status = status === 'success' ? 'completed' : status;
     action.updatedAt = completedAt;
-    pushEvent(action, status === 'success' ? 'orca.action_completed' : 'orca.action_failed', actor, {
+    const completedEventType = options.completedEventType || 'orca.action_completed';
+    const failedEventType = options.failedEventType || 'orca.action_failed';
+    pushEvent(action, status === 'success' ? completedEventType : failedEventType, actor, {
       resultStatus: status,
       artifactCount: action.result.artifacts.length,
     });

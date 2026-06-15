@@ -1,0 +1,11 @@
+{
+  "contractType": "capability",
+  "changeType": "add",
+  "target": "orca.unknown_app_capability",
+  "description": "This request references an app that is not in the allowed app list.",
+  "proposedValue": {
+    "capabilityKey": "orca.unknown_app_capability"
+  },
+  "appId": "unknown_app",
+  "reason": "Negative fixture: unknown appId must be rejected."
+}

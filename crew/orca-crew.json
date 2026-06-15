@@ -1,0 +1,170 @@
+{
+  "name": "Elkhedr Orca Production Crew",
+  "version": "1.0.0",
+  "project": "elkhedr-orca",
+  "mission": "Governed enterprise execution runtime for coding, product-building, MCP tools, agent teams, and approved actions.",
+  "model_policy": {
+    "priority": [
+      "Free/cheap models available through OpenCode and OpenRouter",
+      "NVIDIA Nemotron family for reasoning, architecture, and orchestration roles",
+      "Mimo / Kimi / Qwen3.7 family for coding and implementation roles",
+      "Gemma 4 family for generalist and fallback roles"
+    ],
+    "role_model_mapping": {
+      "architecture_planning": ["nvidia/nemotron-3-super-120b-a12b", "google/gemma-4-31b-it"],
+      "code_generation": ["qwen/qwen3-coder", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"],
+      "security_audit": ["nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", "meta-llama/llama-guard-4-12b"],
+      "code_review": ["qwen/qwen3-coder", "google/gemma-4-26b-a4b-it"],
+      "documentation": ["google/gemma-4-26b-a4b-it", "nvidia/nemotron-nano-12b-v2-vl"],
+      "fallback": ["google/gemma-4-26b-a4b-it"]
+    },
+    "notes": [
+      "Avoid model IDs with invalid prefixes (e.g., leading '~').",
+      "Prefer OpenRouter-free tiers and OpenCode-hosted models for cost control.",
+      "When a model fails, fall back to the next model in the role mapping.",
+      "Subagent crew types are chosen for reliability; model choices follow this policy."
+    ]
+  },
+  "operating_model": {
+    "source_of_truth": "docs/plans/2026-06-15_ELKHEDR_ORCA_APP_PRODUCTION_ROADMAP.csv",
+    "research_brief": "docs/researches/2026-06-15_ELKHEDR_ORCA_APP_MARKET_RESEARCH.md",
+    "agent_guide": "docs/notes/AGENT_USER_GUIDE.md",
+    "sync_rules": "docs/notes/TWO_COPY_STANDALONE_SYNC.md",
+    "verify_before_handoff": [
+      "npm run manifest",
+      "npm test",
+      "node --check src/index.js",
+      "node --check src/mcp-server.js"
+    ],
+    "safety_rules": [
+      "Run gitnexus_impact before editing any function, class, or method.",
+      "Keep risky actions behind approval queues.",
+      "Never expose session histories, secrets, or execution traces in docs/fixtures/events.",
+      "Update the app-local CSV row after every completed task with status, evidence, and verification."
+    ]
+  },
+  "crew": [
+    {
+      "callsign": "orca-architect",
+      "subagent_type": "nemotron-chief",
+      "role": "Chief Architect & Planner",
+      "specialization": "Architecture decomposition, risk analysis, migration planning, debugging strategy",
+      "responsibilities": [
+        "Decompose roadmap tasks into implementable plans",
+        "Assess blast radius and integration boundaries",
+        "Define contract schemas and runtime interfaces",
+        "Resolve architectural conflicts between modules"
+      ],
+      "engagement_trigger": "Before any Phase 1+ implementation; when multiple modules interact; for contract design."
+    },
+    {
+      "callsign": "orca-scout",
+      "subagent_type": "context-scout",
+      "role": "Codebase Cartographer",
+      "specialization": "Deep repository scans, large document processing, cross-file dependency mapping",
+      "responsibilities": [
+        "Map existing contract, action, event, and sandbox code",
+        "Locate runtime paths referenced by roadmap tasks",
+        "Summarize module boundaries and exported APIs",
+        "Find relevant tests, fixtures, and schemas"
+      ],
+      "engagement_trigger": "At the start of every task; when exploring unfamiliar code paths."
+    },
+    {
+      "callsign": "orca-sentinel",
+      "subagent_type": "security-auditor",
+      "role": "Security & Boundaries Sentinel",
+      "specialization": "Security auditing, vulnerability scanning, architectural hardening",
+      "responsibilities": [
+        "Review approval, sandbox, and permission boundaries",
+        "Audit action contracts for bypass risks",
+        "Validate negative tests and deny-by-default behavior",
+        "Check secret redaction and audit logging"
+      ],
+      "engagement_trigger": "All Phase 1 Contracts & Boundaries tasks; any action/sandbox/policy work."
+    },
+    {
+      "callsign": "orca-builder",
+      "subagent_type": "qwen-builder",
+      "role": "Implementation Engineer",
+      "specialization": "Bounded implementation work, features, refactors, bug fixes, integration tasks",
+      "responsibilities": [
+        "Implement contract runtime paths and schemas",
+        "Write fixtures, negative tests, and positive tests",
+        "Update commands, config, and CLI surfaces",
+        "Follow existing code style and minimize intrusions"
+      ],
+      "engagement_trigger": "After plan and impact analysis are complete; for bounded coding tasks."
+    },
+    {
+      "callsign": "orca-quality",
+      "subagent_type": "code-quality",
+      "role": "Code Quality Assessor",
+      "specialization": "Code quality assessment, anti-pattern detection, refactoring strategies",
+      "responsibilities": [
+        "Review code for anti-patterns and maintainability issues",
+        "Suggest refactors that reduce complexity",
+        "Verify test coverage and fixture quality",
+        "Check consistency with project conventions"
+      ],
+      "engagement_trigger": "Before handoff; after implementation; before PR."
+    },
+    {
+      "callsign": "orca-devops",
+      "subagent_type": "devops",
+      "role": "DevOps & Verification Runner",
+      "specialization": "CI/CD pipelines, Dockerfiles, infrastructure automation, deployment scripts",
+      "responsibilities": [
+        "Run manifest, test, and syntax verification scripts",
+        "Validate Docker Compose and K8s manifests",
+        "Check health, readiness, and metrics endpoints",
+        "Ensure install scripts and backup scripts pass checks"
+      ],
+      "engagement_trigger": "After implementation; before roadmap status update; for infrastructure tasks."
+    },
+    {
+      "callsign": "orca-docs",
+      "subagent_type": "docs-finisher",
+      "role": "Documentation & Handoff Writer",
+      "specialization": "Setup guides, handoff notes, README updates, changelog-style summaries",
+      "responsibilities": [
+        "Document operator behavior for new contracts",
+        "Update roadmap CSV evidence and verification fields",
+        "Write concise handoff notes for the next agent",
+        "Ensure docs match implementation state"
+      ],
+      "engagement_trigger": "After verification; before final handoff; whenever docs drift."
+    },
+    {
+      "callsign": "orca-testsmith",
+      "subagent_type": "qwen-builder",
+      "skill_load": "javascript-testing-patterns",
+      "role": "Test Pattern Specialist",
+      "specialization": "Jest, Vitest, Testing Library, mocking, fixtures, TDD/BDD workflows",
+      "responsibilities": [
+        "Design test strategies for contract runtime paths",
+        "Write unit and integration tests with proper mocking",
+        "Create synthetic fixtures and negative cases",
+        "Verify fallback chain and error paths"
+      ],
+      "engagement_trigger": "When tests or fixtures are needed; before handoff."
+    }
+  ],
+  "default_workflow": [
+    "orca-scout maps the codebase for the current task",
+    "orca-architect decomposes the task and defines interfaces",
+    "orca-sentinel reviews security and boundary requirements",
+    "orca-builder implements the runtime path and tests",
+    "orca-testsmith validates fixtures and negative cases",
+    "orca-quality reviews the implementation",
+    "orca-devops runs verification scripts",
+    "orca-docs updates evidence and handoff notes"
+  ],
+  "first_task": {
+    "id": "ELK-ORCA-PROD-003",
+    "name": "Contract Change Request",
+    "phase": "1 - Contracts And Boundaries",
+    "priority": "P0",
+    "goal": "Define the production contract for Contract Change Request; implement or verify the runtime path; add synthetic fixtures and negative tests; document operator behavior; update the CSV row with evidence after verification."
+  }
+}
