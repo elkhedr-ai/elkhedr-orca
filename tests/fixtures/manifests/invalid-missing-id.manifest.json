@@ -1,0 +1,18 @@
+{
+  "label": "Elkhedr Orca",
+  "kind": "standalone_product_app",
+  "version": "1.1.0",
+  "description": "Missing required id field.",
+  "standalone": {
+    "repo": "https://github.com/ekagent/elkhedr-orca",
+    "downloadable": true,
+    "bootCommand": "npm run cli",
+    "healthCheck": "/health"
+  },
+  "routes": [],
+  "apiPrefixes": ["/api/orca"],
+  "capabilityPrefixes": ["orca."],
+  "eventTypes": [],
+  "artifactTypes": [],
+  "integrationModes": ["standalone"]
+}
