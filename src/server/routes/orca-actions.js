@@ -68,37 +68,6 @@ function buildArtifactForAction(action) {
 async function orcaActionRoutes(fastify) {
   const store = getActionApprovalStore();
 
-  fastify.get('/events', {
-    schema: {
-      description: 'List Orca action events for OS projection.',
-      tags: ['Orca'],
-      querystring: {
-        type: 'object',
-        properties: {
-          eventType: { type: 'string' },
-          limit: { type: 'integer', default: 50 },
-        },
-      },
-    },
-  }, async (request) => {
-    const allActions = store.list();
-    let events = [];
-    for (const action of allActions) {
-      for (const event of action.events || []) {
-        events.push({
-          ...event,
-          artifact: buildArtifactForAction(action),
-        });
-      }
-    }
-    events.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-    const limit = Math.min(parseInt(request.query.limit || 50, 10), 200);
-    if (request.query.eventType) {
-      events = events.filter((e) => e.event_type === request.query.eventType);
-    }
-    return { events: events.slice(0, limit) };
-  });
-
   fastify.get('/status', {
     schema: {
       description: 'Check Orca bridge status and action approval contract support.',
@@ -140,11 +109,13 @@ async function orcaActionRoutes(fastify) {
         type: 'object',
         properties: {
           eventType: { type: 'string' },
+          limit: { type: 'integer', default: 50 },
         },
       },
     },
   }, async (request) => {
-    return { events: store.listEvents({ eventType: request.query.eventType }) };
+    const limit = Math.min(parseInt(request.query.limit || 50, 10), 200);
+    return { events: store.listEvents({ eventType: request.query.eventType }).slice(0, limit) };
   });
 
   fastify.post('/actions', {
