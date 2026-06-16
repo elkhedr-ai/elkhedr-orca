@@ -161,3 +161,26 @@ Because Orca runs shell commands, strict execution boundaries are required:
 - **Cross-App Communication:** Use only MCP protocols or HTTP API routes to coordinate with Studio or OS.
 - **Projection Boundary:** Expose action lifecycle events as OS-compatible envelopes;
   never let OS or Studio read Orca databases or import `src` modules.
+
+---
+
+## 13. New Device Setup
+
+To develop this repo on a fresh machine:
+
+```bash
+# Standalone clone
+git clone https://github.com/ekagent/elkhedr-orca.git
+cd elkhedr-orca
+npm install
+
+# Or within the parent workspace as a submodule
+cd ELKHEDR_WORKSPACE
+git submodule add https://github.com/ekagent/elkhedr-orca.git elkhedr-orca
+git submodule update --init --recursive
+```
+
+For Studio bridge integration, run the bootstrap script:
+```bash
+ORCA_BRANCH=studio-enterprise-bridge ./elkhedr-studio/scripts/bootstrap-orca.sh
+```
