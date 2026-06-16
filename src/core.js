@@ -437,7 +437,7 @@ async function callOpenRouter(model, messages, fallbackModel = null, sandbox = f
             headers: {
               'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
               'X-Title': 'Elkhedr Orca',
-              'HTTP-Referer': 'https://github.com/ekagent/elkhedr-orca'
+              'HTTP-Referer': 'https://github.com/elkhedr-ai/elkhedr-orca'
             },
             timeout: 60000 // 60 second timeout
           }),

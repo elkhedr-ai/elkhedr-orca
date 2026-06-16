@@ -54,7 +54,7 @@ function loadConfig() {
         `Environment validation failed:\n  - ${issues}`,
         { 
           hint: 'Check your .env file or environment variables. Run: cp .env.example .env',
-          docs: 'https://github.com/ekagent/elkhedr-orca#configuration'
+          docs: 'https://github.com/elkhedr-ai/elkhedr-orca#configuration'
         }
       );
     }

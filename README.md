@@ -5,7 +5,7 @@
 ## 🚀 One-Command Installation
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/ekagent/elkhedr-orca/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/elkhedr-ai/elkhedr-orca/main/install.sh | bash
 ```
 
 ## 🛠️ Usage

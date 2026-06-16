@@ -5,7 +5,7 @@
   "version": "1.1.0",
   "description": "Event type outside app namespace.",
   "standalone": {
-    "repo": "https://github.com/ekagent/elkhedr-orca",
+    "repo": "https://github.com/elkhedr-ai/elkhedr-orca",
     "downloadable": true,
     "bootCommand": "npm run cli",
     "healthCheck": "/health"

@@ -1,6 +1,6 @@
 # Elkhedr Studio Integration
 
-This standalone application is also integrated as a **Git Submodule** within [Elkhedr Studio](https://github.com/ekagent/elkhedr-studio) under the **Enterprise Section**.
+This standalone application is also integrated as a **Git Submodule** within [Elkhedr Studio](https://github.com/elkhedr-ai/elkhedr-studio) under the **Enterprise Section**.
 
 ## How the Integration Works
 - **Deduplication:** The code exists in its own repository and is linked inside Studio. This prevents duplication and ensures a "single source of truth."
@@ -14,6 +14,6 @@ To keep both apps synced across devices:
 ## Setup on New Devices
 When cloning Elkhedr Studio on a new machine, use:
 ```bash
-git clone --recurse-submodules https://github.com/ekagent/elkhedr-studio.git
+git clone --recurse-submodules https://github.com/elkhedr-ai/elkhedr-studio.git
 ```
 This will automatically download the correct version of Orca.

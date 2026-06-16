@@ -170,13 +170,13 @@ To develop this repo on a fresh machine:
 
 ```bash
 # Standalone clone
-git clone https://github.com/ekagent/elkhedr-orca.git
+git clone https://github.com/elkhedr-ai/elkhedr-orca.git
 cd elkhedr-orca
 npm install
 
 # Or within the parent workspace as a submodule
 cd ELKHEDR_WORKSPACE
-git submodule add https://github.com/ekagent/elkhedr-orca.git elkhedr-orca
+git submodule add https://github.com/elkhedr-ai/elkhedr-orca.git elkhedr-orca
 git submodule update --init --recursive
 ```
 

@@ -72,7 +72,7 @@ async function execute(args) {
             ...form.getHeaders(),
             'Authorization': `Bearer ${apiKey}`,
             'X-Title': 'Elkhedr Orca Audio',
-            'HTTP-Referer': 'https://github.com/ekagent/elkhedr-orca'
+            'HTTP-Referer': 'https://github.com/elkhedr-ai/elkhedr-orca'
           },
           timeout: 120000
         }
@@ -122,7 +122,7 @@ async function execute(args) {
               ...form.getHeaders(),
               'Authorization': `Bearer ${apiKey}`,
               'X-Title': 'Elkhedr Orca Audio',
-              'HTTP-Referer': 'https://github.com/ekagent/elkhedr-orca'
+              'HTTP-Referer': 'https://github.com/elkhedr-ai/elkhedr-orca'
             },
             timeout: 120000
           }

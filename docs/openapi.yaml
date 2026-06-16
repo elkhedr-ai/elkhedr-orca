@@ -8,7 +8,7 @@ info:
     Manage agents, sessions, analytics, billing, webhooks, alerts, backups, and more.
   contact:
     name: Elkhedr
-    url: https://github.com/ekagent/elkhedr-orca
+    url: https://github.com/elkhedr-ai/elkhedr-orca
 servers:
   - url: /api/v1
     description: API v1

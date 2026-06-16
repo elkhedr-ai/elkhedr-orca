@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Elkhedr Orca Installer
-# Usage: curl -sSL https://raw.githubusercontent.com/ekagent/elkhedr-orca/main/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/elkhedr-ai/elkhedr-orca/main/install.sh | bash
 
 echo "🚀 Installing Elkhedr Orca..."
 
@@ -10,7 +10,7 @@ INSTALL_DIR="$HOME/elkhedr-orca"
 if [ ! -d "$INSTALL_DIR" ]; then
     mkdir -p "$INSTALL_DIR"
     # In a real scenario, we would git clone here
-    # git clone https://github.com/ekagent/elkhedr-orca.git "$INSTALL_DIR"
+    # git clone https://github.com/elkhedr-ai/elkhedr-orca.git "$INSTALL_DIR"
 fi
 
 cd "$INSTALL_DIR"
