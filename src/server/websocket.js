@@ -99,7 +99,10 @@ class StreamingServer {
    * Stop the server
    */
   stop() {
-    if (!this.running) return;
+    if (!this.running) {
+      this.hub.stop();
+      return;
+    }
 
     this.running = false;
 

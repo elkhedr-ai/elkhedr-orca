@@ -309,6 +309,10 @@ describe('EventBus - Global Instance', () => {
     resetEventBus();
   });
 
+  after(() => {
+    resetEventBus();
+  });
+
   it('should return singleton instance', () => {
     const bus1 = getEventBus();
     const bus2 = getEventBus();

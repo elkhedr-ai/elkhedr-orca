@@ -28,7 +28,8 @@ describe('API Server', () => {
       assert.strictEqual(response.statusCode, 200);
       const body = JSON.parse(response.body);
       assert.strictEqual(body.status, 'ok');
-      assert.ok(body.uptime);
+      assert.strictEqual(typeof body.uptime, 'number');
+      assert.ok(body.uptime >= 0);
       assert.ok(body.timestamp);
     });
 

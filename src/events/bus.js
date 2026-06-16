@@ -46,9 +46,11 @@ class EventBus extends EventEmitter {
   constructor(options = {}) {
     super();
     
-    this.name = options.name || 'default';
-    this.store = options.store || new FileEventStore();
     this.persistenceEnabled = options.persistenceEnabled !== false;
+    this.name = options.name || 'default';
+    this.store = options.store || (
+      this.persistenceEnabled ? new FileEventStore() : new MemoryEventStore()
+    );
     this.maxListeners = options.maxListeners || 100;
     
     this.setMaxListeners(this.maxListeners);

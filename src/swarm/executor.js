@@ -201,12 +201,23 @@ async function runAgentWithTimeout(agent, task, timeoutMs, sandbox, sessionStats
     return { agentId: agent.agentId, role: agent.role, output };
   };
 
-  // Apply timeout via Promise.race
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Agent ${agent.role} timed out after ${timeoutMs}ms`)), timeoutMs)
-  );
+  // Apply timeout via Promise.race, but clear the timer when the agent wins.
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`Agent ${agent.role} timed out after ${timeoutMs}ms`)),
+      timeoutMs
+    );
+    if (typeof timeoutId.unref === 'function') {
+      timeoutId.unref();
+    }
+  });
 
-  return Promise.race([execute(), timeoutPromise]);
+  try {
+    return await Promise.race([execute(), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**

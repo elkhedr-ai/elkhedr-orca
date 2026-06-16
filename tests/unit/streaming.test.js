@@ -2,7 +2,7 @@
  * Tests for Real-time Event Streaming
  */
 
-const { describe, it, beforeEach, after } = require('node:test');
+const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
 const http = require('http');
 const { EventStreamHub } = require('../../src/events/stream.js');
@@ -19,9 +19,11 @@ describe('EventStreamHub', () => {
     hub = new EventStreamHub({ eventBus: bus, heartbeatInterval: 0 });
   });
 
-  after(() => {
+  afterEach(() => {
     if (hub) hub.stop();
     if (bus) bus.stop();
+    hub = null;
+    bus = null;
   });
 
   it('should create hub with defaults', () => {
@@ -148,8 +150,9 @@ describe('EventStreamHub', () => {
 describe('StreamingServer', () => {
   let server;
 
-  after(() => {
+  afterEach(() => {
     if (server) server.stop();
+    server = null;
   });
 
   it('should create server with defaults', () => {

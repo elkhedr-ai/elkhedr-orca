@@ -19,9 +19,10 @@ class EventStreamHub extends EventEmitter {
     
     this.eventBus = options.eventBus || getEventBus({ persistenceEnabled: false });
     this.maxClients = options.maxClients || 100;
-    this.heartbeatInterval = options.heartbeatInterval || 30000;
+    this.heartbeatInterval = options.heartbeatInterval ?? 30000;
     this.clients = new Map(); // clientId -> { type, response/ws, filters, connectedAt }
     this.clientCounter = 0;
+    this._eventUnsubscribe = null;
     this.stats = {
       totalConnections: 0,
       messagesSent: 0,
@@ -43,7 +44,7 @@ class EventStreamHub extends EventEmitter {
    * Subscribe to EventBus and forward to connected clients
    */
   _setupEventForwarding() {
-    this.eventBus.subscribe('*', (event) => {
+    this._eventUnsubscribe = this.eventBus.subscribe('*', (event) => {
       this.broadcast(event);
     });
   }
@@ -279,6 +280,11 @@ class EventStreamHub extends EventEmitter {
    * Stop the hub
    */
   stop() {
+    if (this._eventUnsubscribe) {
+      this._eventUnsubscribe();
+      this._eventUnsubscribe = null;
+    }
+
     // Close all clients
     for (const clientId of this.clients.keys()) {
       this.removeClient(clientId);

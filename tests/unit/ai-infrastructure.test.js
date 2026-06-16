@@ -3,6 +3,7 @@ const assert = require('node:assert');
 
 process.env.ORCA_LOG_LEVEL = process.env.ORCA_LOG_LEVEL || 'error';
 
+const { getDatabaseInstance, initializeDatabaseInstance } = require('../../src/db');
 const { VectorStore, getVectorStore } = require('../../src/rag/vector.js');
 const { buildRagPrompt, queryWithRag, extractCitations, indexKnowledgeEntry } = require('../../src/rag/prompts.js');
 const { prepareRagMessages, finalizeRagResponse } = require('../../src/core.js');
@@ -17,13 +18,23 @@ const { QuotaManager, getQuotaManager } = require('../../src/billing/quotas.js')
 const { MetricsCollector, getMetricsCollector } = require('../../src/server/metrics.js');
 const { AlertManager } = require('../../src/alerts/rules.js');
 
+async function resetInMemoryDatabase() {
+  process.env.ORCA_DB_TYPE = 'sqlite';
+  delete process.env.ORCA_DB_PATH;
+  process.env.ORCA_DB_URL = ':memory:';
+  const db = getDatabaseInstance();
+  if (db.initialized) {
+    await db.close();
+  }
+  getVectorStore().initialized = false;
+  return initializeDatabaseInstance();
+}
+
 describe('T41: Vector Database', () => {
   let store;
 
   beforeEach(async () => {
-    process.env.ORCA_DB_URL = ':memory:';
-    const { initializeDatabaseInstance } = require('../../src/db');
-    await initializeDatabaseInstance();
+    await resetInMemoryDatabase();
     store = new VectorStore();
     await store.initialize();
   });
@@ -117,9 +128,7 @@ describe('T42: RAG Prompts', () => {
   });
 
   it('should build RAG prompt with sources', async () => {
-    process.env.ORCA_DB_URL = ':memory:';
-    const { initializeDatabaseInstance } = require('../../src/db');
-    await initializeDatabaseInstance();
+    await resetInMemoryDatabase();
     const store = getVectorStore();
     await store.initialize();
     await store.storeDocument('doc1', 'Node.js is a JavaScript runtime built on Chrome\'s V8 engine.', { title: 'Node.js Guide' });
@@ -131,9 +140,7 @@ describe('T42: RAG Prompts', () => {
   });
 
   it('should index knowledge entries into vector search', async () => {
-    process.env.ORCA_DB_URL = ':memory:';
-    const { initializeDatabaseInstance } = require('../../src/db');
-    await initializeDatabaseInstance();
+    await resetInMemoryDatabase();
 
     const indexed = await indexKnowledgeEntry(
       'PostgreSQL Guide',
@@ -153,9 +160,7 @@ describe('T42: RAG Prompts', () => {
   });
 
   it('should prepare core messages with RAG context', async () => {
-    process.env.ORCA_DB_URL = ':memory:';
-    const { initializeDatabaseInstance } = require('../../src/db');
-    await initializeDatabaseInstance();
+    await resetInMemoryDatabase();
     await indexKnowledgeEntry(
       'Query Planning',
       'PostgreSQL query planner uses statistics and indexes to optimize retrieval.',
@@ -398,9 +403,7 @@ describe('T46: Quota Manager', () => {
   let testUserId = 1;
 
   beforeEach(async () => {
-    process.env.ORCA_DB_URL = ':memory:';
-    const { initializeDatabaseInstance } = require('../../src/db');
-    db = await initializeDatabaseInstance();
+    db = await resetInMemoryDatabase();
     // Create a test user directly in the db we know
     for (const userId of [testUserId, 99, 100]) {
       await db.getAdapter().execute(
